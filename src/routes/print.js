@@ -18,13 +18,19 @@ function parseHex(value, fallback) {
 function printLines({ vid, pid, lines }) {
   if (!escpos || !USB) return Promise.resolve({ simulated: true });
   return new Promise((resolve) => {
+    let done = false;
+    const finalize = (result) => {
+      if (done) return;
+      done = true;
+      resolve(result);
+    };
     try {
       const device = new escpos.USB(vid, pid);
       const printer = new escpos.Printer(device);
       device.open((error) => {
         if (error) {
           console.warn('Printer open failed, simulation fallback:', error.message);
-          resolve({ simulated: true, error: error.message });
+          finalize({ simulated: true, error: error.message });
           return;
         }
         printer
@@ -34,11 +40,11 @@ function printLines({ vid, pid, lines }) {
           .text(lines.join('\n'))
           .text('------------------------------')
           .cut()
-          .close(() => resolve({ simulated: false }));
+          .close(() => finalize({ simulated: false }));
       });
     } catch (err) {
       console.warn('Printer fallback simulation:', err.message);
-      resolve({ simulated: true, error: err.message });
+      finalize({ simulated: true, error: err.message });
     }
   });
 }

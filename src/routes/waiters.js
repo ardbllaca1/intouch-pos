@@ -22,7 +22,7 @@ module.exports = (app, db, getSubdomain) => {
     if (!waiter) return res.status(401).json({ error: 'Kredenciale të gabuara' });
 
     let ok = false;
-    const isBcryptHash = /^\$2[aby]\$\d{2}\$/.test(String(waiter.pin));
+    const isBcryptHash = /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(String(waiter.pin));
     if (isBcryptHash) {
       try {
         ok = bcrypt.compareSync(String(pin), waiter.pin);

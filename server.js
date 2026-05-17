@@ -212,8 +212,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 function getSubdomain(req) {
   const host = req.headers.host || '';
   const hostname = host.split(':')[0].toLowerCase();
-  const isLocalHost = hostname === 'localhost' || net.isIP(hostname) !== 0;
-  if (!isLocalHost) {
+  const skipSubdomainExtraction = hostname === 'localhost' || net.isIP(hostname) !== 0;
+  if (!skipSubdomainExtraction) {
     const parts = hostname.split('.');
     if (parts.length >= 3) return parts[0].toLowerCase();
   }

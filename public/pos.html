@@ -52,7 +52,10 @@ let categories=[], products=[], tables=[], selectedCategory=0, selectedTable=nul
 const ns = io(`/${subdomain}`); ns.on('table:update',()=>loadTables()); ns.on('order:update',()=>selectedTable&&loadOrderForTable(selectedTable.id));
 
 async function api(path, opts={}){
-  if (!path.startsWith('/api/')) throw new Error('Path i pavlefshëm');
+  const allowed = ['/api/menu/','/api/tables','/api/orders','/api/payments','/api/print'];
+  if (!path.startsWith('/api/') || path.includes('..') || !allowed.some(prefix => path.startsWith(prefix))) {
+    throw new Error('Path i pavlefshëm');
+  }
   const r=await fetch(path + (path.includes('?')?'&':'?') + 'client='+encodeURIComponent(subdomain), {...opts, headers:{...headers,...(opts.headers||{})}});
   const j=await r.json();
   if(!r.ok) throw new Error(j.error||'Gabim');
