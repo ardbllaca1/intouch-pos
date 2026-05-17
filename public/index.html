@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="sq">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InTouch POS - Hyrje</title>
+  <style>
+    :root { --bg:#0a0a0f; --surface:#111118; --accent:#6366f1; --text:#f5f5f7; }
+    *{box-sizing:border-box;font-family:system-ui,-apple-system,sans-serif}
+    body{margin:0;background:var(--bg);color:var(--text);min-height:100vh;display:grid;place-items:center;padding:16px}
+    .card{background:var(--surface);width:min(420px,100%);border-radius:14px;padding:20px;box-shadow:0 10px 30px #0006}
+    h1{margin:0 0 16px;font-size:1.4rem} label{display:block;font-size:.9rem;margin-top:10px}
+    input,button{width:100%;min-height:44px;border-radius:10px;border:1px solid #2a2a35;background:#1a1a25;color:#fff;padding:10px}
+    button{background:var(--accent);border:none;font-weight:700;cursor:pointer;margin-top:14px}
+    .hidden{display:none}.waiters{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:10px}
+    .pin{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+    .pin button{margin:0}.active{outline:2px solid #818cf8}
+    #pinDots{letter-spacing:8px;font-size:1.4rem;text-align:center;margin-top:8px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Hyrje në POS</h1>
+    <section id="loginStep">
+      <label>Nën-domena</label><input id="subdomain" value="demo" />
+      <label>Përdoruesi</label><input id="username" value="admin" />
+      <label>Fjalëkalimi</label><input id="password" type="password" value="admin123" />
+      <button id="loginBtn">Vazhdo</button>
+      <p id="loginMsg"></p>
+    </section>
+    <section id="waiterStep" class="hidden">
+      <p>Zgjidh kamarierin</p>
+      <div id="waiters" class="waiters"></div>
+      <p id="pinDots">----</p>
+      <div class="pin" id="pinPad"></div>
+      <button id="pinBtn">Hap POS</button>
+      <p id="pinMsg"></p>
+    </section>
+  </div>
+<script>
+const qs = s => document.querySelector(s);
+let token = '', selected = '', pin = '';
+const nums = ['1','2','3','4','5','6','7','8','9','⌫','0','C'];
+const pinPad = qs('#pinPad');
+nums.forEach(n => {
+  const b = document.createElement('button'); b.textContent = n;
+  b.onclick = () => {
+    if (n === 'C') pin='';
+    else if (n === '⌫') pin = pin.slice(0,-1);
+    else if (pin.length < 4) pin += n;
+    qs('#pinDots').textContent = pin.padEnd(4,'-').replace(/\d/g,'•');
+  };
+  pinPad.appendChild(b);
+});
+
+qs('#loginBtn').onclick = async () => {
+  const subdomain = qs('#subdomain').value.trim();
+  sessionStorage.setItem('subdomain', subdomain);
+  const res = await fetch('/api/login', {
+    method:'POST', headers:{'Content-Type':'application/json','x-subdomain':subdomain},
+    body: JSON.stringify({username:qs('#username').value.trim(), password:qs('#password').value})
+  });
+  const data = await res.json();
+  if (!res.ok) return qs('#loginMsg').textContent = data.error || 'Gabim';
+  token = data.token;
+  sessionStorage.setItem('token', token);
+  qs('#loginStep').classList.add('hidden');
+  qs('#waiterStep').classList.remove('hidden');
+  loadWaiters();
+};
+
+async function loadWaiters(){
+  const subdomain = sessionStorage.getItem('subdomain') || 'demo';
+  const res = await fetch('/api/waiters?client=' + encodeURIComponent(subdomain), {
+    headers: { Authorization:`Bearer ${token}`, 'x-subdomain':subdomain }
+  });
+  const waiters = await res.json();
+  const box = qs('#waiters'); box.innerHTML = '';
+  waiters.forEach(w => {
+    const b = document.createElement('button'); b.textContent = w.name;
+    b.onclick = () => { selected = w.name; [...box.children].forEach(c=>c.classList.remove('active')); b.classList.add('active'); };
+    box.appendChild(b);
+  });
+}
+
+qs('#pinBtn').onclick = async () => {
+  const subdomain = sessionStorage.getItem('subdomain') || 'demo';
+  if (!selected || pin.length !== 4) return qs('#pinMsg').textContent = 'Zgjidh kamarierin dhe PIN 4-shifror';
+  const res = await fetch('/api/waiters/pin?client=' + encodeURIComponent(subdomain), {
+    method:'POST', headers:{'Content-Type':'application/json', Authorization:`Bearer ${token}`, 'x-subdomain':subdomain},
+    body: JSON.stringify({ name:selected, pin })
+  });
+  const data = await res.json();
+  if (!res.ok) return qs('#pinMsg').textContent = data.error || 'PIN i pasaktë';
+  sessionStorage.setItem('waiterName', data.name);
+  location.href = `/pos.html?client=${encodeURIComponent(subdomain)}`;
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="sq"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kuzhina</title>
+<style>
+:root{--bg:#0a0a0f;--surface:#111118;--accent:#6366f1;--danger:#dc2626}*{box-sizing:border-box;font-family:system-ui,-apple-system,sans-serif}
+body{margin:0;background:var(--bg);color:#fff;padding:12px}h1{margin:0 0 12px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.card{background:var(--surface);border-radius:12px;padding:12px;border-left:6px solid var(--accent)}.card.late{border-left-color:var(--danger)}
+button{min-height:44px;border:none;border-radius:8px;background:var(--accent);color:#fff;padding:8px 12px;font-weight:700;cursor:pointer}
+</style></head><body>
+<h1>Display Kuzhine</h1><div id="orders" class="grid"></div>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const subdomain = new URLSearchParams(location.search).get('client') || 'demo';
+const box = document.getElementById('orders');
+const ns = io(`/${subdomain}`); ns.on('kitchen:new', load); ns.on('order:update', load);
+async function load(){
+  const res = await fetch('/api/kitchen/orders?client='+encodeURIComponent(subdomain));
+  const orders = await res.json();
+  box.innerHTML='';
+  orders.forEach(o=>{
+    const mins = Math.floor((Date.now()-new Date(o.created_at).getTime())/60000);
+    const d=document.createElement('div'); d.className='card'+(mins>=15?' late':'');
+    d.innerHTML=`<h3>${o.table_name} - ${o.waiter_name}</h3><p>${mins} min</p><ul>${o.items.map(i=>`<li>${i.qty}x ${i.product_name}</li>`).join('')}</ul><button>U krye ✓</button>`;
+    d.querySelector('button').onclick=async()=>{ await fetch(`/api/kitchen/orders/${o.id}/done?client=${encodeURIComponent(subdomain)}`,{method:'PUT'}); load(); };
+    box.appendChild(d);
+  });
+}
+setInterval(load,15000); load();
+</script></body></html>
