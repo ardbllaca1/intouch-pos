@@ -51,7 +51,13 @@ const headers = { 'Content-Type':'application/json', Authorization:`Bearer ${tok
 let categories=[], products=[], tables=[], selectedCategory=0, selectedTable=null, order=null;
 const ns = io(`/${subdomain}`); ns.on('table:update',()=>loadTables()); ns.on('order:update',()=>selectedTable&&loadOrderForTable(selectedTable.id));
 
-async function api(path, opts={}){ const r=await fetch(path + (path.includes('?')?'&':'?') + 'client='+encodeURIComponent(subdomain), {...opts, headers:{...headers,...(opts.headers||{})}}); const j=await r.json(); if(!r.ok) throw new Error(j.error||'Gabim'); return j; }
+async function api(path, opts={}){
+  if (!path.startsWith('/api/')) throw new Error('Path i pavlefshëm');
+  const r=await fetch(path + (path.includes('?')?'&':'?') + 'client='+encodeURIComponent(subdomain), {...opts, headers:{...headers,...(opts.headers||{})}});
+  const j=await r.json();
+  if(!r.ok) throw new Error(j.error||'Gabim');
+  return j;
+}
 async function load(){ [categories,products,tables]=await Promise.all([api('/api/menu/categories'),api('/api/menu/products'),api('/api/tables')]); renderCategories(); renderProducts(); renderTables(); }
 function tableClass(t){ return t.status==='free'?'free':(t.status==='attention'?'attention':'occupied'); }
 function renderTables(){

@@ -10,6 +10,7 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const { Server } = require('socket.io');
+const net = require('net');
 
 const app = express();
 const server = http.createServer(app);
@@ -211,7 +212,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 function getSubdomain(req) {
   const host = req.headers.host || '';
   const hostname = host.split(':')[0].toLowerCase();
-  const isLocalHost = hostname === 'localhost' || /^\d+\.\d+\.\d+\.\d+$/.test(hostname);
+  const isLocalHost = hostname === 'localhost' || net.isIP(hostname) !== 0;
   if (!isLocalHost) {
     const parts = hostname.split('.');
     if (parts.length >= 3) return parts[0].toLowerCase();

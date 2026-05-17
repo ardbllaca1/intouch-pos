@@ -16,36 +16,37 @@ function parseHex(value, fallback) {
 }
 
 function printLines({ vid, pid, lines }) {
-  if (!escpos || !USB) return { simulated: true };
-  try {
-    const device = new escpos.USB(vid, pid);
-    const printer = new escpos.Printer(device);
-    device.open((error) => {
-      if (error) {
-        console.warn('Printer open failed, simulation fallback:', error.message);
-        console.log(lines.join('\n'));
-        return;
-      }
-      printer
-        .align('ct')
-        .style('b')
-        .size(1, 1)
-        .text(lines.join('\n'))
-        .text('------------------------------')
-        .cut()
-        .close();
-    });
-    return { simulated: false };
-  } catch (err) {
-    console.warn('Printer fallback simulation:', err.message);
-    return { simulated: true, error: err.message };
-  }
+  if (!escpos || !USB) return Promise.resolve({ simulated: true });
+  return new Promise((resolve) => {
+    try {
+      const device = new escpos.USB(vid, pid);
+      const printer = new escpos.Printer(device);
+      device.open((error) => {
+        if (error) {
+          console.warn('Printer open failed, simulation fallback:', error.message);
+          resolve({ simulated: true, error: error.message });
+          return;
+        }
+        printer
+          .align('ct')
+          .style('b')
+          .size(1, 1)
+          .text(lines.join('\n'))
+          .text('------------------------------')
+          .cut()
+          .close(() => resolve({ simulated: false }));
+      });
+    } catch (err) {
+      console.warn('Printer fallback simulation:', err.message);
+      resolve({ simulated: true, error: err.message });
+    }
+  });
 }
 
 module.exports = (app, db, getSubdomain) => {
   const authMiddleware = app.locals.authMiddleware;
 
-  app.post('/api/print/receipt', authMiddleware, (req, res) => {
+  app.post('/api/print/receipt', authMiddleware, async (req, res) => {
     const subdomain = getSubdomain(req);
     const { order_id, cash_given, change_due } = req.body;
     if (!order_id) return res.status(400).json({ error: 'order_id required' });
@@ -74,7 +75,7 @@ module.exports = (app, db, getSubdomain) => {
       now
     ];
 
-    const result = printLines({
+    const result = await printLines({
       vid: parseHex(process.env.BAR_PRINTER_VID, 0x04b8),
       pid: parseHex(process.env.BAR_PRINTER_PID, 0x0202),
       lines
@@ -84,7 +85,7 @@ module.exports = (app, db, getSubdomain) => {
     res.json({ status: 'ok', simulated: !!result.simulated });
   });
 
-  app.post('/api/print/kitchen', authMiddleware, (req, res) => {
+  app.post('/api/print/kitchen', authMiddleware, async (req, res) => {
     const subdomain = getSubdomain(req);
     const { order_id } = req.body;
     if (!order_id) return res.status(400).json({ error: 'order_id required' });
@@ -114,7 +115,7 @@ module.exports = (app, db, getSubdomain) => {
       ...items.map(i => `${i.qty}x ${i.product_name}${i.note ? ` (${i.note})` : ''}`)
     ];
 
-    const result = printLines({
+    const result = await printLines({
       vid: parseHex(process.env.KITCHEN_PRINTER_VID, 0x04b8),
       pid: parseHex(process.env.KITCHEN_PRINTER_PID, 0x0202),
       lines

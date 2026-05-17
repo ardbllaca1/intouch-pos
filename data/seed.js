@@ -45,7 +45,8 @@ const subdomain = 'demo';
 
 db.prepare(`INSERT INTO clients (subdomain, name) VALUES (?, ?) ON CONFLICT(subdomain) DO UPDATE SET name = excluded.name`).run(subdomain, 'Demo Restaurant');
 
-const adminPassword = bcrypt.hashSync('admin123', 10);
+const initialPassword = process.env.DEMO_ADMIN_PASSWORD || 'admin123';
+const adminPassword = bcrypt.hashSync(initialPassword, 10);
 db.prepare(`INSERT INTO users (subdomain, username, password) VALUES (?, ?, ?) ON CONFLICT(subdomain, username) DO UPDATE SET password = excluded.password`).run(subdomain, 'admin', adminPassword);
 
 db.prepare('DELETE FROM menu_products WHERE subdomain = ?').run(subdomain);

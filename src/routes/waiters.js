@@ -19,16 +19,21 @@ module.exports = (app, db, getSubdomain) => {
     const { name, pin } = req.body;
     if (!name || !pin) return res.status(400).json({ error: 'name and pin required' });
     const waiter = db.prepare('SELECT * FROM waiters WHERE subdomain = ? AND name = ? AND active = 1').get(subdomain, name);
-    if (!waiter) return res.status(401).json({ error: 'PIN i gabuar' });
+    if (!waiter) return res.status(401).json({ error: 'Kredenciale të gabuara' });
 
     let ok = false;
-    try {
-      ok = bcrypt.compareSync(String(pin), waiter.pin);
-    } catch {
+    const isBcryptHash = /^\$2[aby]\$\d{2}\$/.test(String(waiter.pin));
+    if (isBcryptHash) {
+      try {
+        ok = bcrypt.compareSync(String(pin), waiter.pin);
+      } catch {
+        ok = false;
+      }
+    } else {
       ok = String(pin) === String(waiter.pin);
     }
 
-    if (!ok) return res.status(401).json({ error: 'PIN i gabuar' });
+    if (!ok) return res.status(401).json({ error: 'Kredenciale të gabuara' });
     res.json({ id: waiter.id, name: waiter.name, role: waiter.role, active: waiter.active });
   });
 
