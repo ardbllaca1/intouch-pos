@@ -304,8 +304,8 @@
   <div class="topbar-right">
     <div class="badge-live"><div class="dot"></div> Live</div>
     <span id="last-updated" style="font-size:11px;color:var(--muted);display:none"></span>
-    <button class="btn" onclick="fetchData()">↻ <span class="hide-mobile">Rifresko</span></button>
-    <button class="btn btn-logout" onclick="logout()">Dil</button>
+    <button id="btn-refresh" class="btn">↻ <span class="hide-mobile">Rifresko</span></button>
+    <button id="btn-logout" class="btn btn-logout">Dil</button>
   </div>
 </div>
 
@@ -504,6 +504,15 @@
   const clientParam = new URLSearchParams(window.location.search).get('client')
                    || sessionStorage.getItem('client')
                    || '';
+
+  // Preserve ?client= on all nav links
+  document.querySelectorAll('.nav-card').forEach(a => {
+    if (!clientParam) return;
+    const baseHref = a.getAttribute('href');
+    if (!baseHref) return;
+    const sep = baseHref.includes('?') ? '&' : '?';
+    a.href = baseHref + sep + 'client=' + encodeURIComponent(clientParam);
+  });
 
   const restaurantName = sessionStorage.getItem('restaurantName') || 'InTouch';
   document.getElementById('restaurantName').textContent = restaurantName;
@@ -704,6 +713,8 @@
     resizeTimer = setTimeout(() => { applyLayout(); fetchData(); }, 250);
   });
 
+  document.getElementById('btn-refresh').addEventListener('click', fetchData);
+  document.getElementById('btn-logout').addEventListener('click', logout);
   fetchData();
   setInterval(fetchData, 30000);
 </script>
