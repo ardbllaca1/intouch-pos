@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>POS</title>
+<style>
+:root{--bg:#0a0a0f;--surface:#111118;--accent:#6366f1;--text:#f5f5f7;--ok:#16a34a;--warn:#f97316;--bad:#dc2626}
+*{box-sizing:border-box;font-family:system-ui,-apple-system,sans-serif}body{margin:0;background:var(--bg);color:var(--text)}
+.top{padding:10px 14px;background:#0d0d13;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:3}
+.layout{display:grid;grid-template-columns:220px 1fr 300px;gap:10px;padding:10px}
+.panel{background:var(--surface);border-radius:12px;padding:10px;min-height:80vh}.tabs{display:none}
+.tables{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.table{min-height:44px;border:none;border-radius:8px;color:#fff;cursor:pointer}
+.free{background:var(--ok)}.occupied{background:var(--warn)}.attention{background:var(--bad)}
+.floor{position:relative;height:420px;background:#191927;border-radius:10px;overflow:hidden}.f-table{position:absolute;display:grid;place-items:center;border:2px solid #333;background:#222;color:#fff;cursor:move;user-select:none}
+.f-table.round{border-radius:50%}.categories{display:flex;gap:8px;overflow:auto}.categories button{min-height:44px;border:none;border-radius:999px;padding:0 12px;background:#252538;color:#fff}
+.products{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:8px}.product{background:#1b1b2b;border:none;color:#fff;border-radius:10px;padding:10px;min-height:90px;text-align:left}
+.order-item{display:flex;justify-content:space-between;align-items:center;background:#1a1a25;border-radius:8px;padding:8px;margin-bottom:6px}.qty button{min-width:32px;min-height:32px}
+button{min-height:44px} .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;position:sticky;bottom:0;background:var(--surface);padding-top:8px}
+.modal{position:fixed;inset:0;background:#0009;display:none;place-items:center}.modal.show{display:grid}.card{background:var(--surface);padding:16px;border-radius:12px;width:min(360px,92vw)}
+@media (max-width:767px){.layout{grid-template-columns:1fr}.left,.center,.right{display:none}.left.active,.center.active,.right.active{display:block}.tabs{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);background:#111;padding:6px;gap:6px}.tabs button{border:none;background:#23233a;color:#fff;border-radius:8px}}
+</style>
+</head>
+<body>
+<div class="top"><strong>InTouch POS</strong><span id="waiter"></span></div>
+<div class="layout">
+  <section class="panel left active">
+    <button id="toggleFloor">Floor Plan</button>
+    <div id="tableList" class="tables"></div>
+    <div id="floor" class="floor" style="display:none"></div>
+  </section>
+  <section class="panel center active">
+    <div id="categoryTabs" class="categories"></div>
+    <div id="productGrid" class="products"></div>
+  </section>
+  <section class="panel right active">
+    <h3 id="orderTitle">Porosia</h3><div id="orderItems"></div>
+    <h2 id="total">Total: 0.00€</h2>
+    <div class="actions"><button id="sendKitchen">Dërgo në kuzhinë</button><button id="payBtn">Paguaj</button></div>
+  </section>
+</div>
+<div class="tabs"><button data-tab="left">Tables</button><button data-tab="center">Menu</button><button data-tab="right">Order</button><button id="openPay">Pay</button></div>
+<div id="payModal" class="modal"><div class="card"><h3>Pagesa</h3><p id="payTotal"></p><input id="cash" type="number" step="0.01" placeholder="Cash" /><p id="change"></p><button id="confirmPay">Konfirmo</button><button id="closePay">Mbyll</button></div></div>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const q=s=>document.querySelector(s), qa=s=>[...document.querySelectorAll(s)];
+const subdomain = new URLSearchParams(location.search).get('client') || sessionStorage.getItem('subdomain') || 'demo';
+const token = sessionStorage.getItem('token');
+const waiterName = sessionStorage.getItem('waiterName') || 'Pa kamarier';
+q('#waiter').textContent = `Kamarieri: ${waiterName}`;
+const headers = { 'Content-Type':'application/json', Authorization:`Bearer ${token}`, 'x-subdomain':subdomain };
+let categories=[], products=[], tables=[], selectedCategory=0, selectedTable=null, order=null;
+const ns = io(`/${subdomain}`); ns.on('table:update',()=>loadTables()); ns.on('order:update',()=>selectedTable&&loadOrderForTable(selectedTable.id));
+
+async function api(path, opts={}){
+  const allowed = ['/api/menu/','/api/tables','/api/orders','/api/payments','/api/print'];
+  if (!path.startsWith('/api/') || path.includes('..') || !allowed.some(prefix => path.startsWith(prefix))) {
+    throw new Error('Path i pavlefshëm');
+  }
+  const r=await fetch(path + (path.includes('?')?'&':'?') + 'client='+encodeURIComponent(subdomain), {...opts, headers:{...headers,...(opts.headers||{})}});
+  const j=await r.json();
+  if(!r.ok) throw new Error(j.error||'Gabim');
+  return j;
+}
+async function load(){ [categories,products,tables]=await Promise.all([api('/api/menu/categories'),api('/api/menu/products'),api('/api/tables')]); renderCategories(); renderProducts(); renderTables(); }
+function tableClass(t){ return t.status==='free'?'free':(t.status==='attention'?'attention':'occupied'); }
+function renderTables(){
+  const list=q('#tableList'); list.innerHTML='';
+  tables.forEach(t=>{ const b=document.createElement('button'); b.className=`table ${tableClass(t)}`; b.textContent=t.name; b.onclick=()=>selectTable(t); list.appendChild(b); });
+  const floor=q('#floor'); floor.innerHTML='';
+  tables.forEach(t=>{
+    const d=document.createElement('div'); d.className=`f-table ${t.shape||'square'} ${tableClass(t)}`; d.textContent=t.name; d.draggable=true;
+    d.style.left=(t.pos_x||0)+'px'; d.style.top=(t.pos_y||0)+'px'; d.style.width=(t.width||80)+'px'; d.style.height=(t.height||80)+'px';
+    d.ondragstart=e=>e.dataTransfer.setData('id',t.id);
+    d.onclick=()=>selectTable(t);
+    floor.appendChild(d);
+  });
+}
+q('#floor').ondragover=e=>e.preventDefault();
+q('#floor').ondrop=async e=>{ e.preventDefault(); const id=e.dataTransfer.getData('id'); const rect=q('#floor').getBoundingClientRect(); const x=Math.max(0,Math.round(e.clientX-rect.left-40)); const y=Math.max(0,Math.round(e.clientY-rect.top-40)); await api(`/api/tables/${id}/position`,{method:'PUT',body:JSON.stringify({pos_x:x,pos_y:y})}); await loadTables(); };
+function renderCategories(){ const c=q('#categoryTabs'); c.innerHTML='<button onclick="setCategory(0)">Të gjitha</button>'; categories.forEach(cat=>{ const b=document.createElement('button'); b.textContent=`${cat.icon||'🍽️'} ${cat.name}`; b.onclick=()=>setCategory(cat.id); c.appendChild(b); }); }
+function setCategory(id){ selectedCategory=id; renderProducts(); }
+window.setCategory=setCategory;
+function renderProducts(){ const grid=q('#productGrid'); grid.innerHTML=''; products.filter(p=>!selectedCategory||p.category_id===selectedCategory).forEach(p=>{ const b=document.createElement('button'); b.className='product'; b.innerHTML=`<strong>${p.name}</strong><br>${Number(p.price).toFixed(2)}€`; b.onclick=()=>addItem(p.id); grid.appendChild(b); }); }
+async function loadTables(){ tables = await api('/api/tables'); renderTables(); }
+async function selectTable(t){ selectedTable=t; await loadOrderForTable(t.id); q('#orderTitle').textContent=`Porosia - ${t.name}`; }
+async function loadOrderForTable(tableId){
+  const open=await api('/api/orders');
+  order = open.find(o=>o.table_id===tableId);
+  if(!order) order = await api('/api/orders',{method:'POST',body:JSON.stringify({table_id:tableId,waiter_name:waiterName})});
+  const full = await api('/api/orders/'+order.id); order.items = full.items || []; renderOrder();
+}
+async function addItem(productId){ if(!order){ alert('Zgjidh tavolinën'); return; } await api(`/api/orders/${order.id}/items`,{method:'POST',body:JSON.stringify({product_id:productId,qty:1})}); await loadOrderForTable(selectedTable.id); }
+async function removeOne(itemId){ await api(`/api/orders/${order.id}/items/${itemId}`,{method:'DELETE'}); await loadOrderForTable(selectedTable.id); }
+function renderOrder(){ const box=q('#orderItems'); box.innerHTML=''; let total=0; (order.items||[]).forEach(i=>{ total += Number(i.price)*Number(i.qty); const row=document.createElement('div'); row.className='order-item'; row.innerHTML=`<span>${i.qty}x ${i.product_name}</span><span class="qty"><button>-</button></span>`; row.querySelector('button').onclick=()=>removeOne(i.id); row.oncontextmenu=(e)=>{e.preventDefault(); const note=prompt('Shënim:',i.note||''); if(note!==null){ api(`/api/orders/${order.id}/items`,{method:'POST',body:JSON.stringify({product_id:i.product_id,qty:1,note})}).then(()=>loadOrderForTable(selectedTable.id)); }}; box.appendChild(row); });
+  q('#total').textContent=`Total: ${total.toFixed(2)}€`; q('#payTotal').textContent=q('#total').textContent;
+}
+q('#sendKitchen').onclick=async()=>{ if(!order) return; await api(`/api/orders/${order.id}/send`,{method:'PUT'}); await api('/api/print/kitchen',{method:'POST',body:JSON.stringify({order_id:order.id})}); alert('U dërgua në kuzhinë'); };
+function openPay(){ q('#payModal').classList.add('show'); }
+q('#payBtn').onclick=openPay; q('#openPay').onclick=openPay; q('#closePay').onclick=()=>q('#payModal').classList.remove('show');
+q('#cash').oninput=()=>{ const total=parseFloat(q('#total').textContent.replace(/[^\d.]/g,''))||0; const cash=parseFloat(q('#cash').value)||0; q('#change').textContent='Kusuri: '+(cash-total).toFixed(2)+'€'; };
+q('#confirmPay').onclick=async()=>{ if(!order) return; const cash=parseFloat(q('#cash').value||'0'); const pay=await api('/api/payments',{method:'POST',body:JSON.stringify({order_id:order.id,cash_given:cash})}); await api('/api/print/receipt',{method:'POST',body:JSON.stringify({order_id:order.id,cash_given:pay.cash_given,change_due:pay.change_due})}); q('#payModal').classList.remove('show'); alert('Pagesa u krye'); order=null; await loadTables(); q('#orderItems').innerHTML=''; q('#total').textContent='Total: 0.00€'; };
+q('#toggleFloor').onclick=()=>{ const f=q('#floor'); const l=q('#tableList'); const on=f.style.display==='none'; f.style.display=on?'block':'none'; l.style.display=on?'none':'grid'; };
+qa('.tabs button[data-tab]').forEach(b=>b.onclick=()=>{ qa('.left,.center,.right').forEach(x=>x.classList.remove('active')); q('.'+b.dataset.tab).classList.add('active'); });
+if(!token) location.href='/index.html'; load();
+</script>
+</body>
+</html>
