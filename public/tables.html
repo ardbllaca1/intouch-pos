@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Tavolinat</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --bg:#0a0a0f; --surface:#111118; --surface2:#1a1a24; --border:#2a2a3a;
+      --accent:#6366f1; --accent2:#8b5cf6; --green:#10b981; --red:#ef4444;
+      --yellow:#f59e0b; --text:#f1f5f9; --muted:#64748b; --radius:14px;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+      min-height: 100vh;
+    }
+    .topbar {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:0 max(16px, env(safe-area-inset-left));
+      padding-right:max(16px, env(safe-area-inset-right));
+      height:56px; background:var(--surface); border-bottom:1px solid var(--border);
+      position:sticky; top:0; z-index:100; backdrop-filter: blur(12px);
+    }
+    .topbar-left { display:flex; align-items:center; gap:10px; min-width:0; }
+    .logo {
+      width:30px; height:30px; flex-shrink:0; border-radius:8px;
+      display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+    }
+    .topbar-titles h1 { font-size:15px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .topbar-date { font-size:11px; color:var(--muted); }
+    .btn {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+      padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; min-height: 36px;
+    }
+    .btn:hover { background: var(--border); }
+    .page { max-width: 1200px; margin: 0 auto; padding: 16px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px;
+    }
+    .card-title { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+    .legend { display:flex; flex-wrap:wrap; gap:14px; margin-bottom:14px; color:var(--muted); font-size:13px; }
+    .legend-item { display:flex; align-items:center; gap:8px; }
+    .swatch { width:12px; height:12px; border-radius:3px; }
+    .swatch-green { background: var(--green); }
+    .swatch-red { background: var(--red); }
+    .tables-grid {
+      display:grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 10px;
+    }
+    .table-cell {
+      min-height: 80px;
+      border: 1px solid var(--border);
+      border-top-width: 4px;
+      border-radius: 10px;
+      display:flex; align-items:center; justify-content:center;
+      text-align:center; padding:6px;
+      font-size: 15px; font-weight: 700;
+      background: var(--surface2);
+      color: var(--muted);
+    }
+    .table-cell.active {
+      border-top-color: var(--accent);
+      border-color: rgba(99,102,241,0.5);
+      background: rgba(99,102,241,0.14);
+      color: var(--accent);
+    }
+    .table-cell.inactive {
+      border-top-color: var(--red);
+      border-color: rgba(239,68,68,0.4);
+      background: rgba(239,68,68,0.10);
+      color: #fca5a5;
+    }
+    .empty { color: var(--muted); text-align:center; padding: 24px 0; }
+    @media (min-width: 600px) {
+      .topbar { height: 60px; padding: 0 24px; }
+      .page { padding: 24px; }
+    }
+    @media (min-width: 900px) {
+      .topbar { height: 64px; padding: 0 32px; }
+      .topbar-titles h1 { font-size: 16px; }
+      .page { padding: 32px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">IT</div>
+      <div class="topbar-titles">
+        <h1 id="restaurantName">InTouch</h1>
+        <div class="topbar-date">Tavolinat</div>
+      </div>
+    </div>
+    <button id="btn-back" class="btn">← Kthehu</button>
+  </div>
+
+  <main class="page">
+    <section class="card">
+      <h2 class="card-title">Tavolinat</h2>
+      <div class="legend">
+        <div class="legend-item"><span class="swatch swatch-green"></span>Ka porosi aktive</div>
+        <div class="legend-item"><span class="swatch swatch-red"></span>S'ka porosi aktive</div>
+      </div>
+      <div id="tablesGrid" class="tables-grid"></div>
+    </section>
+  </main>
+
+  <script>
+    const token = sessionStorage.getItem('token');
+    if (!token) { window.location.href = '/index.html'; throw new Error('No token'); }
+
+    const clientParam = new URLSearchParams(window.location.search).get('client') || sessionStorage.getItem('client') || '';
+    const restaurantName = sessionStorage.getItem('restaurantName') || 'InTouch';
+    document.getElementById('restaurantName').textContent = restaurantName;
+    document.title = restaurantName + ' – Tavolinat';
+
+    function backToDashboard() {
+      window.location.href = '/dashboard.html' + (clientParam ? '?client=' + encodeURIComponent(clientParam) : '');
+    }
+
+    function renderTables(tables) {
+      const grid = document.getElementById('tablesGrid');
+      if (!tables.length) {
+        grid.innerHTML = '<div class="empty">Nuk ka tavolina sot.</div>';
+        return;
+      }
+      grid.innerHTML = tables.map(t => `<div class="table-cell ${t.active ? 'active' : 'inactive'}">${t.name || ''}</div>`).join('');
+    }
+
+    async function fetchData() {
+      try {
+        const res = await fetch('/api/sales/today?client=' + encodeURIComponent(clientParam), {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        if (res.status === 401) { sessionStorage.clear(); window.location.href = '/index.html'; return; }
+        const data = await res.json();
+        renderTables(Array.isArray(data.tables) ? data.tables : []);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    document.getElementById('btn-back').addEventListener('click', backToDashboard);
+    fetchData();
+    setInterval(fetchData, 30000);
+  </script>
+</body>
+</html>
