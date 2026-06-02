@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>InTouch — Dashboard</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0a0a0f;--surface:#111118;--surface2:#16161f;--border:#1e1e2e;
+    --accent:#6366f1;--accent2:#818cf8;--text:#e2e8f0;--muted:#64748b;
+    --green:#22c55e;--red:#ef4444;--yellow:#f59e0b;--blue:#3b82f6;
+  }
+  body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;
+       min-height:100vh;font-size:15px}
+
+  /* ── Top bar ── */
+  .topbar{display:flex;align-items:center;justify-content:space-between;
+          padding:0 20px;height:56px;background:var(--surface);
+          border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+  .topbar h1{font-size:1.1rem;font-weight:700;color:var(--accent)}
+  .topbar-right{display:flex;align-items:center;gap:12px}
+  #restaurantName{font-size:.85rem;color:var(--muted)}
+  #liveIndicator{display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--muted)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+  .dot.live{background:var(--green);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .btn-logout{background:none;border:1px solid var(--border);color:var(--muted);
+              padding:6px 12px;border-radius:6px;font-size:.8rem;cursor:pointer;transition:all .2s}
+  .btn-logout:hover{border-color:var(--red);color:var(--red)}
+
+  /* ── Layout ── */
+  .main{padding:20px;max-width:1400px;margin:0 auto}
+  .grid{display:grid;gap:16px}
+  .grid-4{grid-template-columns:repeat(4,1fr)}
+  .grid-2{grid-template-columns:repeat(2,1fr)}
+  .grid-3{grid-template-columns:repeat(3,1fr)}
+
+  /* ── Cards ── */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px}
+  .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  .card-title{font-size:.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+
+  /* ── KPI cards ── */
+  .kpi{padding:20px 24px}
+  .kpi-value{font-size:2rem;font-weight:700;color:var(--text);margin:4px 0}
+  .kpi-label{font-size:.8rem;color:var(--muted)}
+  .kpi-icon{font-size:1.8rem}
+  .kpi-top{display:flex;justify-content:space-between;align-items:flex-start}
+
+  /* ── Bar chart (CSS only) ── */
+  .bar-chart{display:flex;align-items:flex-end;gap:4px;height:80px;margin-top:8px}
+  .bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+  .bar{width:100%;background:var(--accent);border-radius:3px 3px 0 0;
+       transition:height .4s ease;min-height:2px;opacity:.85}
+  .bar:hover{opacity:1}
+  .bar-label{font-size:.6rem;color:var(--muted);writing-mode:initial}
+
+  /* ── Tables grid ── */
+  .tables-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .tbl{width:52px;height:52px;border-radius:8px;display:flex;align-items:center;
+       justify-content:center;font-size:.75rem;font-weight:700;
+       border:2px solid transparent;transition:all .2s;cursor:default}
+  .tbl.free{background:#0d2b0d;border-color:#166534;color:var(--green)}
+  .tbl.busy{background:#2d1515;border-color:#991b1b;color:var(--red)}
+
+  /* ── Waiter list ── */
+  .waiter-row{display:flex;align-items:center;justify-content:space-between;
+              padding:10px 0;border-bottom:1px solid var(--border)}
+  .waiter-row:last-child{border-bottom:none}
+  .waiter-name{font-weight:600;font-size:.9rem}
+  .waiter-total{font-weight:700;color:var(--accent)}
+  .waiter-bar-wrap{flex:1;margin:0 12px;height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+  .waiter-bar{height:100%;background:var(--accent);border-radius:3px;transition:width .4s}
+
+  /* ── Department pills ── */
+  .dept-list{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+  .dept-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .dept-name{font-size:.85rem;min-width:80px}
+  .dept-bar-wrap{flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden}
+  .dept-bar{height:100%;border-radius:4px;transition:width .4s}
+  .dept-total{font-size:.85rem;font-weight:700;min-width:56px;text-align:right}
+
+  /* ── Orders table ── */
+  .orders-table{width:100%;border-collapse:collapse;font-size:.85rem}
+  .orders-table th{text-align:left;padding:8px 10px;color:var(--muted);
+                   font-weight:600;border-bottom:1px solid var(--border);font-size:.75rem;
+                   text-transform:uppercase;letter-spacing:.04em}
+  .orders-table td{padding:9px 10px;border-bottom:1px solid #0d0d14}
+  .orders-table tr:last-child td{border-bottom:none}
+  .orders-table tr:hover td{background:var(--surface2)}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;
+         font-size:.72rem;font-weight:600}
+  .badge-bar{background:#1e1b4b;color:var(--accent2)}
+  .badge-kuz{background:#14290d;color:#86efac}
+
+  /* ── Products table ── */
+  .prod-table{width:100%;border-collapse:collapse;font-size:.85rem}
+  .prod-table th{text-align:left;padding:7px 8px;color:var(--muted);
+                 font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;
+                 border-bottom:1px solid var(--border)}
+  .prod-table td{padding:7px 8px;border-bottom:1px solid #0d0d14}
+  .prod-table tr:last-child td{border-bottom:none}
+  .prod-table tr:hover td{background:var(--surface2)}
+  .rank{color:var(--muted);font-size:.75rem;width:24px}
+
+  /* ── Last updated ── */
+  #lastUpdated{font-size:.75rem;color:var(--muted);margin-bottom:16px;text-align:right}
+
+  /* ── Empty state ── */
+  .empty{text-align:center;padding:32px;color:var(--muted);font-size:.9rem}
+
+  /* ── Responsive ── */
+  @media(max-width:1100px){.grid-4{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:700px){
+    .grid-4,.grid-2,.grid-3{grid-template-columns:1fr}
+    .main{padding:12px}
+    .kpi-value{font-size:1.6rem}
+    .topbar h1{font-size:1rem}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>⚡ InTouch</h1>
+  <div class="topbar-right">
+    <span id="restaurantName"></span>
+    <div id="liveIndicator"><span class="dot" id="liveDot"></span><span id="liveText">Duke u ngarkuar…</span></div>
+    <button class="btn-logout" onclick="logout()">Dil</button>
+  </div>
+</div>
+
+<div class="main">
+  <div id="lastUpdated"></div>
+
+  <!-- KPI row -->
+  <div class="grid grid-4" style="margin-bottom:16px">
+    <div class="card kpi">
+      <div class="kpi-top"><div><div class="kpi-label">Shitjet Sot</div><div class="kpi-value" id="kpiTotal">—</div></div><div class="kpi-icon">💰</div></div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-top"><div><div class="kpi-label">Porosi Sot</div><div class="kpi-value" id="kpiOrders">—</div></div><div class="kpi-icon">🧾</div></div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-top"><div><div class="kpi-label">Kamarierë Aktiv</div><div class="kpi-value" id="kpiWaiters">—</div></div><div class="kpi-icon">🧑‍🍳</div></div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-top"><div><div class="kpi-label">Tavolina Zënë</div><div class="kpi-value" id="kpiTables">—</div></div><div class="kpi-icon">🪑</div></div>
+    </div>
+  </div>
+
+  <!-- Hourly chart + Tables -->
+  <div class="grid grid-2" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Shitjet Orare</span></div>
+      <div class="bar-chart" id="barChart"><div class="empty">Nuk ka të dhëna</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Gjendja e Tavolinave</span></div>
+      <div class="tables-grid" id="tablesGrid"><div class="empty">Nuk ka tavolina</div></div>
+    </div>
+  </div>
+
+  <!-- Waiters + Departments -->
+  <div class="grid grid-2" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Kamarierët</span></div>
+      <div id="waiterList"><div class="empty">Nuk ka të dhëna</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Departamentet</span></div>
+      <div class="dept-list" id="deptList"><div class="empty">Nuk ka të dhëna</div></div>
+    </div>
+  </div>
+
+  <!-- Recent orders + Top products -->
+  <div class="grid grid-2" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Porositë e Fundit</span></div>
+      <div style="overflow-x:auto">
+        <table class="orders-table">
+          <thead><tr><th>Produkt</th><th>Sasia</th><th>Vlera</th><th>Tav</th><th>Ora</th><th>Dep</th></tr></thead>
+          <tbody id="ordersBody"><tr><td colspan="6" class="empty">Nuk ka porosi</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Produktet Top</span></div>
+      <div style="overflow-x:auto">
+        <table class="prod-table">
+          <thead><tr><th>#</th><th>Produkt</th><th>Sasia</th><th>Vlera</th></tr></thead>
+          <tbody id="prodsBody"><tr><td colspan="4" class="empty">Nuk ka të dhëna</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const token = sessionStorage.getItem('token');
+  if (!token) location.href = '/';
+
+  document.getElementById('restaurantName').textContent =
+    sessionStorage.getItem('restaurantName') || '';
+
+  const COLORS = ['#6366f1','#8b5cf6','#ec4899','#3b82f6','#10b981','#f59e0b'];
+
+  function fmt(n){ return (Math.round((n||0)*100)/100).toFixed(2) + ' €'; }
+
+  function logout(){
+    sessionStorage.clear();
+    location.href = '/';
+  }
+
+  function setLive(ok){
+    const dot = document.getElementById('liveDot');
+    const txt = document.getElementById('liveText');
+    dot.className = 'dot' + (ok ? ' live' : '');
+    txt.textContent = ok ? 'Gjallë' : 'Shkëputur';
+  }
+
+  async function fetchData(){
+    try {
+      const r = await fetch('/api/sales/today', {
+        headers:{ Authorization: 'Bearer ' + token }
+      });
+      if (r.status === 401){ logout(); return; }
+      const d = await r.json();
+      render(d);
+      setLive(true);
+    } catch(e){
+      setLive(false);
+    }
+  }
+
+  function render(d){
+    // Last updated
+    if(d.lastUpdated){
+      const t = new Date(d.lastUpdated);
+      document.getElementById('lastUpdated').textContent =
+        'Përditësuar: ' + t.toLocaleTimeString('sq-AL');
+    }
+
+    // KPIs
+    document.getElementById('kpiTotal').textContent = fmt(d.totalSales);
+    document.getElementById('kpiOrders').textContent = (d.allOrders||[]).length;
+    document.getElementById('kpiWaiters').textContent = (d.byWaiter||[]).length;
+    const busyTables = (d.tables||[]).filter(t=>t.active).length;
+    document.getElementById('kpiTables').textContent = busyTables + ' / ' + (d.tables||[]).length;
+
+    // Hourly bar chart
+    const hourly = d.hourly || [];
+    const barChart = document.getElementById('barChart');
+    if(hourly.length){
+      const maxC = Math.max(...hourly.map(h=>h.count), 1);
+      barChart.innerHTML = hourly.map(h=>`
+        <div class="bar-wrap">
+          <div class="bar" style="height:${Math.max(4,Math.round(h.count/maxC*76))}px" title="${h.hour}: ${h.count} porosi"></div>
+          <span class="bar-label">${h.hour.slice(0,2)}</span>
+        </div>`).join('');
+    } else {
+      barChart.innerHTML = '<div class="empty">Nuk ka të dhëna</div>';
+    }
+
+    // Tables grid
+    const tables = d.tables || [];
+    const tablesGrid = document.getElementById('tablesGrid');
+    if(tables.length){
+      tablesGrid.innerHTML = tables.map(t=>`
+        <div class="tbl ${t.active?'busy':'free'}" title="${t.name}: ${t.active?'Zënë':'Lirë'}">${t.name}</div>
+      `).join('');
+    } else {
+      tablesGrid.innerHTML = '<div class="empty">Nuk ka tavolina</div>';
+    }
+
+    // Waiters
+    const waiters = d.byWaiter || [];
+    const waiterList = document.getElementById('waiterList');
+    if(waiters.length){
+      const maxW = Math.max(...waiters.map(w=>w.total), 1);
+      waiterList.innerHTML = waiters.map((w,i)=>`
+        <div class="waiter-row">
+          <span class="waiter-name">${w.name}</span>
+          <div class="waiter-bar-wrap">
+            <div class="waiter-bar" style="width:${Math.round(w.total/maxW*100)}%;background:${COLORS[i%COLORS.length]}"></div>
+          </div>
+          <span class="waiter-total">${fmt(w.total)}</span>
+        </div>`).join('');
+    } else {
+      waiterList.innerHTML = '<div class="empty">Nuk ka kamarierë</div>';
+    }
+
+    // Departments
+    const depts = d.byDepartment || [];
+    const deptList = document.getElementById('deptList');
+    if(depts.length){
+      const maxD = Math.max(...depts.map(dep=>dep.total), 1);
+      deptList.innerHTML = depts.map((dep,i)=>`
+        <div class="dept-row">
+          <span class="dept-name">${dep.name}</span>
+          <div class="dept-bar-wrap">
+            <div class="dept-bar" style="width:${Math.round(dep.total/maxD*100)}%;background:${COLORS[(i+2)%COLORS.length]}"></div>
+          </div>
+          <span class="dept-total">${fmt(dep.total)}</span>
+        </div>`).join('');
+    } else {
+      deptList.innerHTML = '<div class="empty">Nuk ka të dhëna</div>';
+    }
+
+    // Recent orders
+    const orders = (d.recentOrders || []).slice(0,20);
+    const ordersBody = document.getElementById('ordersBody');
+    if(orders.length){
+      ordersBody.innerHTML = orders.map(o=>`
+        <tr>
+          <td>${o.produkti}</td>
+          <td>${o.sasia}</td>
+          <td>${fmt(o.vlera)}</td>
+          <td>${o.tav||'—'}</td>
+          <td>${o.time||'—'}</td>
+          <td><span class="badge ${o.kam==='Banaku'?'badge-bar':'badge-kuz'}">${o.kam||'—'}</span></td>
+        </tr>`).join('');
+    } else {
+      ordersBody.innerHTML = '<tr><td colspan="6" class="empty">Nuk ka porosi</td></tr>';
+    }
+
+    // Top products
+    const prods = (d.products || []).slice(0,15);
+    const prodsBody = document.getElementById('prodsBody');
+    if(prods.length){
+      prodsBody.innerHTML = prods.map((p,i)=>`
+        <tr>
+          <td class="rank">${i+1}</td>
+          <td>${p.produkti}</td>
+          <td>${p.sasia}</td>
+          <td>${fmt(p.vlera)}</td>
+        </tr>`).join('');
+    } else {
+      prodsBody.innerHTML = '<tr><td colspan="4" class="empty">Nuk ka të dhëna</td></tr>';
+    }
+  }
+
+  // Initial fetch + auto-refresh every 30s
+  fetchData();
+  setInterval(fetchData, 30000);
+</script>
+</body>
+</html>
