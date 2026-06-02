@@ -204,6 +204,11 @@
   document.getElementById('restaurantName').textContent =
     sessionStorage.getItem('restaurantName') || '';
 
+  // Pick up ?client= from URL or from sessionStorage (set during login)
+  const clientParam = new URLSearchParams(window.location.search).get('client')
+                   || sessionStorage.getItem('client')
+                   || '';
+
   const COLORS = ['#6366f1','#8b5cf6','#ec4899','#3b82f6','#10b981','#f59e0b'];
 
   function fmt(n){ return (Math.round((n||0)*100)/100).toFixed(2) + ' €'; }
@@ -222,7 +227,9 @@
 
   async function fetchData(){
     try {
-      const r = await fetch('/api/sales/today', {
+      // Forward ?client= so the server knows which subdomain to query
+      const url = '/api/sales/today' + (clientParam ? '?client=' + encodeURIComponent(clientParam) : '');
+      const r = await fetch(url, {
         headers:{ Authorization: 'Bearer ' + token }
       });
       if (r.status === 401){ logout(); return; }
