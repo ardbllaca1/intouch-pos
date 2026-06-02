@@ -57,32 +57,37 @@
 
   document.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
 
+  // Preserve the ?client= param so the server knows which subdomain we're logging into
+  const clientParam = new URLSearchParams(window.location.search).get('client');
+
   async function login() {
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
     const btn = document.getElementById('btn');
-    const err = document.getElementById('err');
 
-    err.style.display = 'none';
-    if (!username || !password) {
-      showError('Plotëso të gjitha fushat.');
-      return;
-    }
+    document.getElementById('err').style.display = 'none';
+    if (!username || !password) { showError('Plotëso të gjitha fushat.'); return; }
 
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span>Duke u kyçur...';
 
     try {
-      const res = await fetch('/api/login', {
+      // Forward ?client= so getSubdomain() on the server picks it up
+      const url = '/api/login' + (clientParam ? '?client=' + encodeURIComponent(clientParam) : '');
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
       });
       const data = await res.json();
       if (!res.ok) { showError(data.error || 'Gabim gjatë hyrjes.'); return; }
+
       sessionStorage.setItem('token', data.token);
       sessionStorage.setItem('restaurantName', data.restaurantName || '');
-      location.href = '/dashboard.html';
+      if (clientParam) sessionStorage.setItem('client', clientParam);
+
+      // Keep ?client= on the dashboard too
+      location.href = '/dashboard.html' + (clientParam ? '?client=' + encodeURIComponent(clientParam) : '');
     } catch {
       showError('Nuk mund të lidhet me serverin.');
     } finally {
