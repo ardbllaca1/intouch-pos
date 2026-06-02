@@ -1,62 +1,136 @@
-# InTouch POS
+# InTouch Dashboard
 
-Web-based POS system (Node.js + Express + SQLite + Socket.io) with waiter PIN flow, tables/floor plan, menu/orders, payments, kitchen display, and thermal print endpoints.
+Live sales dashboard for Access 2003 POS systems, powered by Node.js + SQLite.
 
 ## Setup
 
-1. `npm install`
-2. Copy `.env.example` to `.env` and fill values
-3. `node data/seed.js` to seed demo data
-4. `npm start`
-5. Open `http://localhost:3000`
-6. Login with admin credentials (`admin` / `admin123`), then PIN `1234`
+### 1. Install dependencies
+```bash
+npm install
+```
 
-## Pages
+### 2. Configure environment
+```bash
+cp .env.example .env
+# Edit .env with your values
+```
 
-- `/index.html` — login + waiter PIN
-- `/pos.html?client=demo` — main POS
-- `/kitchen.html?client=demo` — kitchen display
-- `/admin.html?client=demo` — admin panel
+### 3. Create your first client
+```bash
+node -e "
+const Database = require('better-sqlite3');
+const bcrypt = require('bcrypt');
+const db = new Database('data/pos.db');
+const pw = bcrypt.hashSync('yourpassword', 10);
+db.prepare('INSERT INTO clients (subdomain,name) VALUES (?,?)').run('demo','Restaurant Demo');
+db.prepare('INSERT INTO users (subdomain,username,password) VALUES (?,?,?)').run('demo','admin',pw);
+console.log('Done!');
+"
+```
 
-## API Endpoints
+### 4. Start the server
+```bash
+npm start
+```
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/login` | Login with username/password |
-| GET | `/api/sales/today` | Dashboard sales summary |
-| POST | `/api/sales` | VBA sales push endpoint |
-| GET | `/api/menu/categories` | List menu categories |
-| POST | `/api/menu/categories` | Create category |
-| PUT | `/api/menu/categories/:id` | Update category |
-| GET | `/api/menu/products` | List active products (`?all=1` for all) |
-| POST | `/api/menu/products` | Create product |
-| PUT | `/api/menu/products/:id` | Update product |
-| DELETE | `/api/menu/products/:id` | Deactivate product |
-| GET | `/api/tables` | List floor tables |
-| POST | `/api/tables` | Create table |
-| PUT | `/api/tables/:id` | Update table |
-| PUT | `/api/tables/:id/position` | Update table position |
-| DELETE | `/api/tables/:id` | Delete table |
-| GET | `/api/orders` | List open orders |
-| GET | `/api/orders/:id` | Get order with items |
-| POST | `/api/orders` | Create/open order for table |
-| POST | `/api/orders/:id/items` | Add item to order |
-| DELETE | `/api/orders/:id/items/:itemId` | Remove order item |
-| PUT | `/api/orders/:id/send` | Mark items as sent |
-| PUT | `/api/orders/:id/close` | Close order |
-| GET | `/api/kitchen/orders` | Kitchen pending orders |
-| PUT | `/api/kitchen/orders/:id/done` | Mark kitchen items done |
-| POST | `/api/payments` | Process cash payment |
-| GET | `/api/payments/today` | List today payments |
-| POST | `/api/print/receipt` | Print/simulate receipt |
-| POST | `/api/print/kitchen` | Print/simulate kitchen ticket |
-| GET | `/api/waiters` | List active waiters |
-| POST | `/api/waiters/pin` | Verify waiter PIN |
-| POST | `/api/waiters` | Create waiter |
-| PUT | `/api/waiters/:id` | Update waiter |
+### 5. Open dashboard
+- Local: `http://localhost:3000`
+- With Cloudflare Tunnel: `https://demo.intouch-data.com`
 
-## Notes
+---
 
-- Multi-tenant subdomain mode is supported via `?client=` or `x-subdomain` header.
-- Socket.io events are emitted per subdomain namespace (`/${subdomain}`).
-- Printer errors are caught and fallback to simulation mode.
+## Cloudflare Tunnel Setup (Linux)
+
+```bash
+# Install cloudflared
+wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+sudo dpkg -i cloudflared-linux-amd64.deb
+
+# Login & create tunnel
+cloudflared tunnel login
+cloudflared tunnel create intouch-dashboard
+
+# Route wildcard DNS (covers all clients automatically)
+cloudflared tunnel route dns intouch-dashboard "*.intouch-data.com"
+
+# Install as systemd service (auto-start on boot)
+sudo cloudflared service install
+sudo systemctl enable cloudflared
+sudo systemctl start cloudflared
+```
+
+Config at `/etc/cloudflared/config.yml`:
+```yaml
+tunnel: intouch-dashboard
+credentials-file: /root/.cloudflared/<TUNNEL-ID>.json
+ingress:
+  - hostname: "*.intouch-data.com"
+    service: http://localhost:3000
+  - service: http_status:404
+```
+
+---
+
+## PM2 (auto-restart on Linux)
+```bash
+npm install -g pm2
+pm2 start server.js --name intouch-dashboard
+pm2 startup
+pm2 save
+```
+
+---
+
+## VBA Push API
+
+From Access/VBA, push data every 30 seconds:
+
+```
+POST /api/sales
+Headers:
+  x-api-key: <your API_KEY>
+  x-subdomain: demo
+Content-Type: application/json
+```
+
+Payload:
+```json
+{
+  "totalSales": 1234.50,
+  "byWaiter": [{"name":"Ana","total":600}],
+  "byDepartment": [{"name":"Banaku","total":800}],
+  "hourly": [{"hour":"10:00","count":5}],
+  "tables": [{"name":"T1","active":true}],
+  "allOrders": [{"produkti":"Kafe","sasia":2,"vlera":2.0,"tav":"T1","time":"10:30","kam":"Banaku"}],
+  "products": [{"produkti":"Kafe","sasia":10,"qmimi":1.0,"vlera":10.0}]
+}
+```
+
+---
+
+## Admin API
+
+Create a new restaurant client:
+```
+POST /api/admin/client
+Headers: x-admin-key: <ADMIN_KEY>
+Body: { "subdomain":"shoku", "name":"Shoku Restaurant", "username":"admin", "password":"secret" }
+```
+
+List all clients:
+```
+GET /api/admin/clients
+Headers: x-admin-key: <ADMIN_KEY>
+```
+
+---
+
+## Dashboard Features
+- 💰 Total sales today
+- 🧾 Total orders count
+- 🧑‍🍳 Active waiters with bar chart
+- 🪑 Table status (free / occupied)
+- 📊 Hourly sales chart
+- 🏆 Top products by quantity
+- 🔄 Auto-refresh every 30 seconds
+- 📱 Fully responsive (phone, tablet, desktop)
