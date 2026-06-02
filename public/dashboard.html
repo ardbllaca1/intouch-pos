@@ -304,8 +304,8 @@
   <div class="topbar-right">
     <div class="badge-live"><div class="dot"></div> Live</div>
     <span id="last-updated" style="font-size:11px;color:var(--muted);display:none"></span>
-    <button class="btn" onclick="fetchData()">↻ <span class="hide-mobile">Rifresko</span></button>
-    <button class="btn btn-logout" onclick="logout()">Dil</button>
+    <button class="btn" id="btn-refresh">↻ <span class="hide-mobile">Rifresko</span></button>
+    <button class="btn btn-logout" id="btn-logout">Dil</button>
   </div>
 </div>
 
@@ -498,7 +498,7 @@
 <script>
   // ── Auth ──
   const token = sessionStorage.getItem('token');
-  if (!token) window.location.href = '/index.html';
+  if (!token) { window.location.href = '/index.html'; throw new Error('not logged in'); }
 
   // Pick up client param from URL or sessionStorage (needed on localhost)
   const clientParam = new URLSearchParams(window.location.search).get('client')
@@ -509,7 +509,7 @@
   document.getElementById('restaurantName').textContent = restaurantName;
   document.title = restaurantName + ' – Dashboard';
 
-  function logout() { sessionStorage.clear(); window.location.href = '/index.html'; }
+  function logout() { sessionStorage.clear(); window.location.href = '/index.html' + (clientParam ? '?client=' + clientParam : ''); }
 
   // ── Detect layout ──
   function isDesktop() { return window.innerWidth >= 900; }
@@ -704,6 +704,8 @@
     resizeTimer = setTimeout(() => { applyLayout(); fetchData(); }, 250);
   });
 
+  document.getElementById('btn-refresh').addEventListener('click', fetchData);
+  document.getElementById('btn-logout').addEventListener('click', logout);
   fetchData();
   setInterval(fetchData, 30000);
 </script>
