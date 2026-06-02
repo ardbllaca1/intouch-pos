@@ -1,5 +1,4 @@
 require('dotenv').config();
-console.log('ADMIN_KEY loaded as:', process.env.ADMIN_KEY);
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -9,14 +8,10 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
-const { Server } = require('socket.io');
 const net = require('net');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: '*' }
-});
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-in-production';
 const API_KEY = process.env.API_KEY || 'change-this-api-key';
@@ -111,86 +106,6 @@ db.exec(`
     vlera      REAL DEFAULT 0,
     UNIQUE(subdomain, date, produkti)
   );
-
-  CREATE TABLE IF NOT EXISTS menu_categories (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    subdomain  TEXT NOT NULL,
-    name       TEXT NOT NULL,
-    icon       TEXT DEFAULT '🍽️',
-    color      TEXT DEFAULT '#6366f1',
-    sort_order INTEGER DEFAULT 0
-  );
-
-  CREATE TABLE IF NOT EXISTS menu_products (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    subdomain   TEXT NOT NULL,
-    code        INTEGER,
-    name        TEXT NOT NULL,
-    price       REAL NOT NULL,
-    category_id INTEGER,
-    department  TEXT NOT NULL DEFAULT 'Banaku',
-    active      INTEGER DEFAULT 1,
-    sort_order  INTEGER DEFAULT 0
-  );
-
-  CREATE TABLE IF NOT EXISTS floor_tables (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    subdomain  TEXT NOT NULL,
-    name       TEXT NOT NULL,
-    pos_x      INTEGER DEFAULT 0,
-    pos_y      INTEGER DEFAULT 0,
-    width      INTEGER DEFAULT 80,
-    height     INTEGER DEFAULT 80,
-    shape      TEXT DEFAULT 'square',
-    status     TEXT DEFAULT 'free',
-    waiter_id  INTEGER,
-    opened_at  TEXT,
-    UNIQUE(subdomain, name)
-  );
-
-  CREATE TABLE IF NOT EXISTS live_orders (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    subdomain   TEXT NOT NULL,
-    table_id    INTEGER NOT NULL,
-    waiter_name TEXT NOT NULL,
-    status      TEXT DEFAULT 'open',
-    created_at  TEXT DEFAULT (datetime('now')),
-    closed_at   TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS live_order_items (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_id     INTEGER NOT NULL,
-    product_id   INTEGER NOT NULL,
-    product_name TEXT NOT NULL,
-    price        REAL NOT NULL,
-    qty          INTEGER DEFAULT 1,
-    note         TEXT,
-    sent_kitchen INTEGER DEFAULT 0,
-    sent_bar     INTEGER DEFAULT 0,
-    created_at   TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS live_payments (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    subdomain   TEXT NOT NULL,
-    order_id    INTEGER NOT NULL,
-    total       REAL NOT NULL,
-    cash_given  REAL NOT NULL,
-    change_due  REAL NOT NULL,
-    waiter_name TEXT,
-    closed_at   TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS waiters (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    subdomain TEXT NOT NULL,
-    name      TEXT NOT NULL,
-    pin       TEXT NOT NULL,
-    role      TEXT DEFAULT 'waiter',
-    active    INTEGER DEFAULT 1,
-    UNIQUE(subdomain, name)
-  );
 `);
 
 // ── Middleware ──────────────────────────────────────────────────
@@ -242,14 +157,6 @@ function apiKeyMiddleware(req, res, next) {
   if (key !== API_KEY) return res.status(401).json({ error: 'Invalid API key' });
   next();
 }
-
-app.locals.authMiddleware = authMiddleware;
-app.locals.io = io;
-
-// ── Socket.io ───────────────────────────────────────────────────
-io.of(/^\/[a-z0-9-]+$/).on('connection', (socket) => {
-  socket.emit('connected', { ok: true });
-});
 
 // ── Auth routes ─────────────────────────────────────────────────
 app.post('/api/login', (req, res) => {
@@ -398,14 +305,6 @@ app.post('/api/sales', apiKeyMiddleware, (req, res) => {
   }
 });
 
-// ── POS routes ──────────────────────────────────────────────────
-require('./src/routes/menu')(app, db, getSubdomain);
-require('./src/routes/tables')(app, db, getSubdomain, io);
-require('./src/routes/orders')(app, db, getSubdomain, io);
-require('./src/routes/payments')(app, db, getSubdomain, io);
-require('./src/routes/print')(app, db, getSubdomain);
-require('./src/routes/waiters')(app, db, getSubdomain);
-
 // ── Admin routes ─────────────────────────────────────────────────
 app.post('/api/admin/client', (req, res) => {
   const adminKey = req.headers['x-admin-key'];
@@ -439,5 +338,5 @@ app.get('*', (req, res) => {
 
 // ── Start ───────────────────────────────────────────────────────
 server.listen(PORT, () => {
-  console.log(`✅ POS server running on port ${PORT}`);
+  console.log(`✅ InTouch Dashboard running on port ${PORT}`);
 });
