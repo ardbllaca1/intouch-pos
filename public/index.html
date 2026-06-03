@@ -32,7 +32,12 @@
            vertical-align:middle;margin-right:6px}
   @keyframes spin{to{transform:rotate(360deg)}}
 </style>
-</head>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#111118">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml"></head>
 <body>
 <div class="card">
   <div class="logo">
@@ -48,19 +53,54 @@
     <label>Fjalëkalimi</label>
     <input id="password" type="password" placeholder="••••••••" autocomplete="current-password"/>
   </div>
-  <button id="btn" onclick="login()">Hyr</button>
+  <button id="btn" type="button">Hyr</button>
 </div>
 
 <script>
+  function hostClient() {
+    const rootDomain = 'intouch-data.com';
+    const hostname = window.location.hostname.toLowerCase();
+    if (hostname.endsWith('.' + rootDomain) && hostname !== 'www.' + rootDomain) {
+      return hostname.slice(0, -rootDomain.length - 1).split('.')[0];
+    }
+    return '';
+  }
+
+  const clientParam = hostClient()
+                   || new URLSearchParams(window.location.search).get('client')
+                   || sessionStorage.getItem('client')
+                   || '';
+
+  function tokenClient(token) {
+    try {
+      return JSON.parse(atob(token.split('.')[1] || '')).subdomain || '';
+    } catch {
+      return '';
+    }
+  }
+
   // If already logged in, go straight to dashboard
-  if (sessionStorage.getItem('token')) location.href = '/dashboard.html';
+  const existingToken = sessionStorage.getItem('token');
+  if (existingToken) {
+    const storedClient = tokenClient(existingToken) || sessionStorage.getItem('client') || '';
+    if (!clientParam || storedClient === clientParam) {
+      location.href = '/dashboard.html' + (clientParam ? '?client=' + encodeURIComponent(clientParam) : '');
+    } else {
+      sessionStorage.clear();
+    }
+  }
+
+  let isLoggingIn = false;
 
   document.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
-
-  // Preserve the ?client= param so the server knows which subdomain we're logging into
-  const clientParam = new URLSearchParams(window.location.search).get('client');
+  document.getElementById('btn').addEventListener('click', login);
+  document.getElementById('btn').addEventListener('touchend', e => {
+    e.preventDefault();
+    login();
+  }, { passive: false });
 
   async function login() {
+    if (isLoggingIn) return;
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
     const btn = document.getElementById('btn');
@@ -68,6 +108,7 @@
     document.getElementById('err').style.display = 'none';
     if (!username || !password) { showError('Plotëso të gjitha fushat.'); return; }
 
+    isLoggingIn = true;
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span>Duke u kyçur...';
 
@@ -84,13 +125,15 @@
 
       sessionStorage.setItem('token', data.token);
       sessionStorage.setItem('restaurantName', data.restaurantName || '');
-      if (clientParam) sessionStorage.setItem('client', clientParam);
+      const activeClient = data.subdomain || clientParam;
+      if (activeClient) sessionStorage.setItem('client', activeClient);
 
       // Keep ?client= on the dashboard too
-      location.href = '/dashboard.html' + (clientParam ? '?client=' + encodeURIComponent(clientParam) : '');
+      location.href = '/dashboard.html' + (activeClient ? '?client=' + encodeURIComponent(activeClient) : '');
     } catch {
       showError('Nuk mund të lidhet me serverin.');
     } finally {
+      isLoggingIn = false;
       btn.disabled = false;
       btn.textContent = 'Hyr';
     }
@@ -102,5 +145,6 @@
     err.style.display = 'block';
   }
 </script>
+  <script src="/pwa.js" defer></script>
 </body>
 </html>

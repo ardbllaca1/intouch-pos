@@ -13,6 +13,8 @@ const net = require('net');
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
+const ROOT_DOMAIN = (process.env.ROOT_DOMAIN || 'intouch-data.com').toLowerCase();
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-in-production';
 const API_KEY = process.env.API_KEY || 'change-this-api-key';
 
@@ -93,6 +95,8 @@ db.exec(`
     tav        TEXT,
     time       TEXT,
     kam        TEXT,
+    is_active  INTEGER DEFAULT 0,
+    session_id TEXT,
     created_at TEXT DEFAULT (datetime('now'))
   );
 
@@ -107,6 +111,15 @@ db.exec(`
     UNIQUE(subdomain, date, produkti)
   );
 `);
+
+function ensureColumn(tableName, columnName, definition) {
+  const hasColumn = db.prepare(`PRAGMA table_info(${tableName})`).all().some(col => col.name === columnName);
+  if (!hasColumn) db.prepare(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`).run();
+}
+
+ensureColumn('orders', 'is_active', 'INTEGER DEFAULT 0');
+ensureColumn('orders', 'session_id', 'TEXT');
+ensureColumn('tables_status', 'opened_at', 'TEXT');
 
 // ── Middleware ──────────────────────────────────────────────────
 app.use(helmet({
@@ -129,10 +142,20 @@ function getSubdomain(req) {
   const hostname = host.split(':')[0].toLowerCase();
   const skipSubdomainExtraction = hostname === 'localhost' || net.isIP(hostname) !== 0;
   if (!skipSubdomainExtraction) {
-    const parts = hostname.split('.');
-    if (parts.length >= 3) return parts[0].toLowerCase();
+    if (hostname.endsWith(`.${ROOT_DOMAIN}`) && hostname !== `www.${ROOT_DOMAIN}`) {
+      return hostname.slice(0, -ROOT_DOMAIN.length - 1).split('.')[0];
+    }
+    if (hostname !== ROOT_DOMAIN && hostname !== `www.${ROOT_DOMAIN}`) {
+      const parts = hostname.split('.');
+      if (parts.length >= 3 && parts[0] !== 'www') return parts[0].toLowerCase();
+    }
   }
-  return req.query.client || req.headers['x-subdomain'] || null;
+  const requestedClient = req.query.client || req.headers['x-subdomain'];
+  if (requestedClient) return String(requestedClient).toLowerCase();
+  if (req.user && req.user.subdomain) return String(req.user.subdomain).toLowerCase();
+
+  const clients = db.prepare('SELECT subdomain FROM clients LIMIT 2').all();
+  return clients.length === 1 ? clients[0].subdomain : null;
 }
 
 function todayDate() {
@@ -146,6 +169,10 @@ function authMiddleware(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
+    const subdomain = getSubdomain(req);
+    if (subdomain && decoded.subdomain && subdomain !== decoded.subdomain) {
+      return res.status(401).json({ error: 'Token belongs to a different client' });
+    }
     next();
   } catch {
     return res.status(401).json({ error: 'Token invalid or expired' });
@@ -165,6 +192,9 @@ app.post('/api/login', (req, res) => {
   if (!username || !password) {
     return res.status(400).json({ error: 'Username dhe fjalëkalimi janë të nevojshëm' });
   }
+  if (!subdomain) {
+    return res.status(400).json({ error: 'Mungon klienti. Hap linkun me ?client=emri ose perdor subdomain-in.' });
+  }
   const user = db.prepare(
     'SELECT * FROM users WHERE subdomain = ? AND username = ?'
   ).get(subdomain, username);
@@ -173,7 +203,7 @@ app.post('/api/login', (req, res) => {
   if (!valid) return res.status(401).json({ error: 'Kredencialet janë të gabuara' });
   const client = db.prepare('SELECT * FROM clients WHERE subdomain = ?').get(subdomain);
   const token = jwt.sign({ username, subdomain }, JWT_SECRET, { expiresIn: '12h' });
-  res.json({ token, restaurantName: client ? client.name : subdomain });
+  res.json({ token, subdomain, restaurantName: client ? client.name : subdomain });
 });
 
 // ── Sales data route ────────────────────────────────────────────
@@ -198,17 +228,23 @@ app.get('/api/sales/today', authMiddleware, (req, res) => {
   ).all(subdomain, date);
 
   const tables = db.prepare(
-    'SELECT name, active FROM tables_status WHERE subdomain = ? AND date = ? ORDER BY name ASC'
+    `SELECT name, active, opened_at AS openedAt
+     FROM tables_status
+     WHERE subdomain = ? AND date = ?
+     ORDER BY
+       CASE WHEN name GLOB '[0-9]*' THEN 0 ELSE 1 END,
+       CAST(name AS INTEGER),
+       name ASC`
   ).all(subdomain, date);
 
   const recentOrders = db.prepare(`
-    SELECT produkti, sasia, vlera, tav, time, kam
+    SELECT produkti, sasia, vlera, tav, time, kam, is_active AS isActive, session_id AS sessionId
     FROM orders WHERE subdomain = ? AND date = ?
     ORDER BY created_at DESC LIMIT 20
   `).all(subdomain, date);
 
   const allOrders = db.prepare(`
-    SELECT produkti, sasia, vlera, tav, time, kam
+    SELECT produkti, sasia, vlera, tav, time, kam, is_active AS isActive, session_id AS sessionId
     FROM orders WHERE subdomain = ? AND date = ?
     ORDER BY created_at DESC
   `).all(subdomain, date);
@@ -269,18 +305,19 @@ app.post('/api/sales', apiKeyMiddleware, (req, res) => {
 
       if (Array.isArray(payload.tables)) {
         db.prepare('DELETE FROM tables_status WHERE subdomain = ? AND date = ?').run(subdomain, date);
-        const insT = db.prepare('INSERT INTO tables_status (subdomain, date, name, active) VALUES (?, ?, ?, ?)');
-        for (const t of payload.tables) insT.run(subdomain, date, t.name, t.active ? 1 : 0);
+        const insT = db.prepare('INSERT INTO tables_status (subdomain, date, name, active, opened_at) VALUES (?, ?, ?, ?, ?)');
+        for (const t of payload.tables) insT.run(subdomain, date, t.name, t.active ? 1 : 0, t.openedAt || t.opened_at || null);
       }
 
       if (Array.isArray(payload.allOrders)) {
         db.prepare('DELETE FROM orders WHERE subdomain = ? AND date = ?').run(subdomain, date);
         const insO = db.prepare(`
-          INSERT INTO orders (subdomain, date, produkti, sasia, vlera, tav, time, kam)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO orders (subdomain, date, produkti, sasia, vlera, tav, time, kam, is_active, session_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         for (const o of payload.allOrders) {
-          insO.run(subdomain, date, o.produkti, o.sasia, o.vlera, o.tav, o.time, o.kam);
+          const isActive = o.isActive || o.active || o.current || o.open ? 1 : 0;
+          insO.run(subdomain, date, o.produkti, o.sasia, o.vlera, o.tav, o.time, o.kam, isActive, o.sessionId || o.session_id || null);
         }
       }
 
@@ -337,6 +374,6 @@ app.get('*', (req, res) => {
 });
 
 // ── Start ───────────────────────────────────────────────────────
-server.listen(PORT, () => {
-  console.log(`✅ InTouch Dashboard running on port ${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`✅ InTouch Dashboard running on http://${HOST}:${PORT}`);
 });

@@ -63,6 +63,14 @@
       font-size: 15px; font-weight: 700;
       background: var(--surface2);
       color: var(--muted);
+      cursor: pointer;
+      width: 100%;
+      font-family: inherit;
+    }
+    .table-cell:hover { border-color: rgba(241,245,249,0.45); }
+    .table-cell.selected {
+      outline: 2px solid var(--text);
+      outline-offset: 2px;
     }
     .table-cell.active {
       border-top-color: var(--accent);
@@ -76,6 +84,46 @@
       background: rgba(239,68,68,0.10);
       color: #fca5a5;
     }
+    .details-card {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .details-head {
+      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+      margin-bottom: 12px;
+    }
+    .details-title { font-size: 18px; font-weight: 700; }
+    .details-subtitle { color: var(--muted); font-size: 13px; margin-top: 3px; }
+    .status-pill {
+      flex-shrink: 0; border: 1px solid var(--border); border-radius: 999px;
+      padding: 5px 9px; font-size: 12px; font-weight: 700;
+    }
+    .status-pill.active { color: var(--accent); background: rgba(99,102,241,0.14); border-color: rgba(99,102,241,0.5); }
+    .status-pill.inactive { color: #fca5a5; background: rgba(239,68,68,0.10); border-color: rgba(239,68,68,0.4); }
+    .summary-grid {
+      display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:10px;
+      margin-bottom: 14px;
+    }
+    .summary-box { background: var(--surface2); border:1px solid var(--border); border-radius:10px; padding:10px; }
+    .summary-label { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+    .summary-value { font-size: 16px; font-weight: 800; overflow-wrap:anywhere; }
+    .orders-wrap { overflow:auto; border:1px solid var(--border); border-radius:10px; }
+    table { width:100%; border-collapse: collapse; min-width: 520px; font-size: 13px; }
+    th, td { text-align:left; padding:10px; border-bottom:1px solid rgba(42,42,58,0.7); }
+    th { color: var(--muted); font-size: 12px; font-weight: 600; background: var(--surface2); }
+    tr:last-child td { border-bottom:none; }
+    tr.row-current { background: rgba(16,185,129,0.10); }
+    tr.row-current td { border-bottom-color: rgba(16,185,129,0.18); }
+    tr.row-previous { opacity: 0.72; }
+    td.amount { text-align:right; font-weight:700; color: var(--green); }
+    .order-state {
+      display:inline-flex; align-items:center; border-radius:999px; padding:3px 7px;
+      font-size:11px; font-weight:700; border:1px solid var(--border); white-space:nowrap;
+    }
+    .order-state.current { color:var(--green); background:rgba(16,185,129,0.14); border-color:rgba(16,185,129,0.45); }
+    .order-state.previous { color:var(--muted); background:var(--surface2); }
+    .session-note { color:var(--muted); font-size:12px; margin:-6px 0 10px; }
     .empty { color: var(--muted); text-align:center; padding: 24px 0; }
     @media (min-width: 600px) {
       .topbar { height: 60px; padding: 0 24px; }
@@ -87,7 +135,12 @@
       .page { padding: 32px; }
     }
   </style>
-</head>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#111118">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml"></head>
 <body>
   <div class="topbar">
     <div class="topbar-left">
@@ -108,6 +161,9 @@
         <div class="legend-item"><span class="swatch swatch-red"></span>S'ka porosi aktive</div>
       </div>
       <div id="tablesGrid" class="tables-grid"></div>
+      <section id="tableDetails" class="details-card" aria-live="polite">
+        <div class="empty">Zgjidh nje tavoline per te pare detajet e dites.</div>
+      </section>
     </section>
   </main>
 
@@ -115,22 +171,166 @@
     const token = sessionStorage.getItem('token');
     if (!token) { window.location.href = '/index.html'; throw new Error('No token'); }
 
-    const clientParam = new URLSearchParams(window.location.search).get('client') || sessionStorage.getItem('client') || '';
+    function hostClient() {
+      const rootDomain = 'intouch-data.com';
+      const hostname = window.location.hostname.toLowerCase();
+      if (hostname.endsWith('.' + rootDomain) && hostname !== 'www.' + rootDomain) {
+        return hostname.slice(0, -rootDomain.length - 1).split('.')[0];
+      }
+      return '';
+    }
+
+    const clientParam = hostClient() || new URLSearchParams(window.location.search).get('client') || sessionStorage.getItem('client') || '';
     const restaurantName = sessionStorage.getItem('restaurantName') || 'InTouch';
     document.getElementById('restaurantName').textContent = restaurantName;
     document.title = restaurantName + ' – Tavolinat';
+    let selectedTableName = '';
+    let latestData = { tables: [], allOrders: [] };
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[ch]));
+    }
+
+    function fmt(n) {
+      return parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
+    }
 
     function backToDashboard() {
       window.location.href = '/dashboard.html' + (clientParam ? '?client=' + encodeURIComponent(clientParam) : '');
     }
 
+    function tableSortValue(name) {
+      const value = String(name || '').trim();
+      const number = parseInt(value, 10);
+      return Number.isNaN(number) ? null : number;
+    }
+
+    function sortTables(tables) {
+      return [...tables].sort((a, b) => {
+        const aNum = tableSortValue(a.name);
+        const bNum = tableSortValue(b.name);
+        if (aNum !== null && bNum !== null && aNum !== bNum) return aNum - bNum;
+        if (aNum !== null && bNum === null) return -1;
+        if (aNum === null && bNum !== null) return 1;
+        return String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric: true, sensitivity: 'base' });
+      });
+    }
+
     function renderTables(tables) {
       const grid = document.getElementById('tablesGrid');
+      tables = sortTables(tables);
       if (!tables.length) {
         grid.innerHTML = '<div class="empty">Nuk ka tavolina sot.</div>';
+        renderTableDetails(null, []);
         return;
       }
-      grid.innerHTML = tables.map(t => `<div class="table-cell ${t.active ? 'active' : 'inactive'}">${t.name || ''}</div>`).join('');
+      grid.innerHTML = tables.map(t => {
+        const name = t.name || '';
+        const state = t.active ? 'active' : 'inactive';
+        const selected = name === selectedTableName ? ' selected' : '';
+        return `<button type="button" class="table-cell ${state}${selected}" data-table="${escapeHtml(name)}">${escapeHtml(name)}</button>`;
+      }).join('');
+      grid.querySelectorAll('.table-cell').forEach(btn => {
+        btn.addEventListener('click', () => {
+          selectedTableName = btn.dataset.table || '';
+          renderTables(latestData.tables);
+        });
+      });
+      if (selectedTableName && !tables.some(t => (t.name || '') === selectedTableName)) {
+        selectedTableName = '';
+        renderTableDetails(null, []);
+      } else {
+        renderSelectedDetails();
+      }
+    }
+
+    function normalizeTableName(value) {
+      return String(value || '').trim().toLowerCase().replace(/^t\s*/, '');
+    }
+
+    function tableOrders(tableName) {
+      const normalized = normalizeTableName(tableName);
+      return (latestData.allOrders || []).filter(o => normalizeTableName(o.tav) === normalized);
+    }
+
+    function uniqueValues(rows, key) {
+      return [...new Set(rows.map(row => row[key]).filter(Boolean))];
+    }
+
+    function hasSessionMarkers(rows) {
+      return rows.some(o => o.isActive || o.active || o.current || o.open || o.sessionId || o.session_id);
+    }
+
+    function isCurrentOrder(order) {
+      return Boolean(order.isActive || order.active || order.current || order.open);
+    }
+
+    function renderSelectedDetails() {
+      if (!selectedTableName) return;
+      const table = (latestData.tables || []).find(t => (t.name || '') === selectedTableName);
+      renderTableDetails(table, tableOrders(selectedTableName));
+    }
+
+    function renderTableDetails(table, orders) {
+      const box = document.getElementById('tableDetails');
+      if (!table) {
+        box.innerHTML = '<div class="empty">Zgjidh nje tavoline per te pare detajet e dites.</div>';
+        return;
+      }
+      const total = orders.reduce((sum, o) => sum + Number(o.vlera || 0), 0);
+      const hasMarkers = hasSessionMarkers(orders);
+      const currentOrders = hasMarkers ? orders.filter(isCurrentOrder) : [];
+      const qty = orders.reduce((sum, o) => sum + Number(o.sasia || 0), 0);
+      const waiters = uniqueValues(orders, 'kam');
+      const times = orders.map(o => o.time).filter(Boolean).sort();
+      const statusClass = table.active ? 'active' : 'inactive';
+      const statusText = table.active ? 'Aktive' : 'Pa porosi aktive';
+      const rows = orders.length ? orders.map(o => {
+        const current = hasMarkers && isCurrentOrder(o);
+        const rowClass = hasMarkers ? (current ? 'row-current' : 'row-previous') : '';
+        const state = hasMarkers
+          ? `<span class="order-state ${current ? 'current' : 'previous'}">${current ? 'Aktive' : 'Me heret'}</span>`
+          : '<span class="order-state previous">Pa shenje</span>';
+        return `
+        <tr class="${rowClass}">
+          <td>${escapeHtml(o.time || '-')}</td>
+          <td>${escapeHtml(o.produkti || '-')}</td>
+          <td>${escapeHtml(o.sasia || 0)}</td>
+          <td>${escapeHtml(o.kam || '-')}</td>
+          <td>${state}</td>
+          <td class="amount">${fmt(o.vlera)}</td>
+        </tr>`;
+      }).join('') : '<tr><td colspan="6" class="empty">Nuk ka porosi per kete tavoline sot.</td></tr>';
+
+      box.innerHTML = `
+        <div class="details-head">
+          <div>
+            <div class="details-title">${escapeHtml(table.name || '-')}</div>
+            <div class="details-subtitle">Detajet per diten e sotme</div>
+          </div>
+          <span class="status-pill ${statusClass}">${statusText}</span>
+        </div>
+        <div class="summary-grid">
+          <div class="summary-box"><div class="summary-label">Totali</div><div class="summary-value">${fmt(total)}</div></div>
+          <div class="summary-box"><div class="summary-label">Produkte</div><div class="summary-value">${qty}</div></div>
+          <div class="summary-box"><div class="summary-label">Aktive tani</div><div class="summary-value">${hasMarkers ? currentOrders.length : '-'}</div></div>
+          <div class="summary-box"><div class="summary-label">Kamarieret</div><div class="summary-value">${escapeHtml(waiters.join(', ') || '-')}</div></div>
+          <div class="summary-box"><div class="summary-label">Ora</div><div class="summary-value">${escapeHtml(times.length ? times[0] + ' - ' + times[times.length - 1] : '-')}</div></div>
+        </div>
+        <div class="session-note">${hasMarkers ? 'Produktet aktive jane te shenuara me jeshile.' : 'Te dhenat aktuale nuk dergojne shenje per seancen aktive, ndaj porosite shfaqen pa dallim.'}</div>
+        <div class="orders-wrap">
+          <table>
+            <thead><tr><th>Ora</th><th>Produkti</th><th>Sasia</th><th>Kamarieri</th><th>Statusi</th><th style="text-align:right">Vlera</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
     }
 
     async function fetchData() {
@@ -140,7 +340,11 @@
         });
         if (res.status === 401) { sessionStorage.clear(); window.location.href = '/index.html'; return; }
         const data = await res.json();
-        renderTables(Array.isArray(data.tables) ? data.tables : []);
+        latestData = {
+          tables: Array.isArray(data.tables) ? data.tables : [],
+          allOrders: Array.isArray(data.allOrders) ? data.allOrders : []
+        };
+        renderTables(latestData.tables);
       } catch (err) {
         console.error(err);
       }
@@ -150,5 +354,6 @@
     fetchData();
     setInterval(fetchData, 30000);
   </script>
+  <script src="/pwa.js" defer></script>
 </body>
 </html>

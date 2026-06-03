@@ -5,7 +5,12 @@
 body{margin:0;background:var(--bg);color:#fff;padding:12px}h1{margin:0 0 12px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
 .card{background:var(--surface);border-radius:12px;padding:12px;border-left:6px solid var(--accent)}.card.late{border-left-color:var(--danger)}
 button{min-height:44px;border:none;border-radius:8px;background:var(--accent);color:#fff;padding:8px 12px;font-weight:700;cursor:pointer}
-</style></head><body>
+</style>  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#111118">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml"></head><body>
 <h1>Display Kuzhine</h1><div id="orders" class="grid"></div>
 <script src="/socket.io/socket.io.js"></script>
 <script>
@@ -25,4 +30,5 @@ async function load(){
   });
 }
 setInterval(load,15000); load();
-</script></body></html>
+</script>  <script src="/pwa.js" defer></script>
+</body></html>

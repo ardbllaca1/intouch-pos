@@ -65,7 +65,12 @@
       .page { padding: 32px; }
     }
   </style>
-</head>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#111118">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml"></head>
 <body>
   <div class="topbar">
     <div class="topbar-left">
@@ -105,7 +110,16 @@
     const token = sessionStorage.getItem('token');
     if (!token) { window.location.href = '/index.html'; throw new Error('No token'); }
 
-    const clientParam = new URLSearchParams(window.location.search).get('client') || sessionStorage.getItem('client') || '';
+    function hostClient() {
+      const rootDomain = 'intouch-data.com';
+      const hostname = window.location.hostname.toLowerCase();
+      if (hostname.endsWith('.' + rootDomain) && hostname !== 'www.' + rootDomain) {
+        return hostname.slice(0, -rootDomain.length - 1).split('.')[0];
+      }
+      return '';
+    }
+
+    const clientParam = hostClient() || new URLSearchParams(window.location.search).get('client') || sessionStorage.getItem('client') || '';
     const restaurantName = sessionStorage.getItem('restaurantName') || 'InTouch';
     document.getElementById('restaurantName').textContent = restaurantName;
     document.title = restaurantName + ' – Lista e Porosive';
@@ -154,5 +168,6 @@
     fetchData();
     setInterval(fetchData, 30000);
   </script>
+  <script src="/pwa.js" defer></script>
 </body>
 </html>

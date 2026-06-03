@@ -289,7 +289,12 @@
       .kpi-grid { gap: 16px; }
     }
   </style>
-</head>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#111118">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml"></head>
 <body>
 
 <!-- TOPBAR -->
@@ -501,24 +506,51 @@
   if (!token) { window.location.href = '/index.html'; throw new Error('not logged in'); }
 
   // Pick up client param from URL or sessionStorage (needed on localhost)
+  function hostClient() {
+    const rootDomain = 'intouch-data.com';
+    const hostname = window.location.hostname.toLowerCase();
+    if (hostname.endsWith('.' + rootDomain) && hostname !== 'www.' + rootDomain) {
+      return hostname.slice(0, -rootDomain.length - 1).split('.')[0];
+    }
+    return '';
+  }
+
   const clientParam = new URLSearchParams(window.location.search).get('client')
+                   || '';
+  const activeClient = hostClient()
+                   || clientParam
                    || sessionStorage.getItem('client')
                    || '';
 
+  function tokenClient(tokenValue) {
+    try {
+      return JSON.parse(atob(tokenValue.split('.')[1] || '')).subdomain || '';
+    } catch {
+      return '';
+    }
+  }
+
+  const storedClient = tokenClient(token) || sessionStorage.getItem('client') || '';
+  if (activeClient && storedClient && storedClient !== activeClient) {
+    sessionStorage.clear();
+    window.location.href = '/index.html' + (activeClient ? '?client=' + encodeURIComponent(activeClient) : '');
+    throw new Error('client mismatch');
+  }
+
   // Preserve ?client= on all nav links
   document.querySelectorAll('.nav-card').forEach(a => {
-    if (!clientParam) return;
+    if (!activeClient) return;
     const baseHref = a.getAttribute('href');
     if (!baseHref) return;
     const sep = baseHref.includes('?') ? '&' : '?';
-    a.href = baseHref + sep + 'client=' + encodeURIComponent(clientParam);
+    a.href = baseHref + sep + 'client=' + encodeURIComponent(activeClient);
   });
 
   const restaurantName = sessionStorage.getItem('restaurantName') || 'InTouch';
   document.getElementById('restaurantName').textContent = restaurantName;
   document.title = restaurantName + ' – Dashboard';
 
-  function logout() { sessionStorage.clear(); window.location.href = '/index.html' + (clientParam ? '?client=' + clientParam : ''); }
+  function logout() { sessionStorage.clear(); window.location.href = '/index.html' + (activeClient ? '?client=' + activeClient : ''); }
 
   // ── Detect layout ──
   function isDesktop() { return window.innerWidth >= 900; }
@@ -613,7 +645,24 @@
 
   function tablesHTML(tables) {
     if (!tables.length) return '<div class="loading">Nuk ka të dhëna</div>';
-    return tables.map(t=>`<div class="table-cell ${t.active?'active':'inactive'}">${t.name}</div>`).join('');
+    return sortTables(tables).map(t=>`<div class="table-cell ${t.active?'active':'inactive'}">${t.name}</div>`).join('');
+  }
+
+  function tableSortValue(name) {
+    const value = String(name || '').trim();
+    const number = parseInt(value, 10);
+    return Number.isNaN(number) ? null : number;
+  }
+
+  function sortTables(tables) {
+    return [...tables].sort((a, b) => {
+      const aNum = tableSortValue(a.name);
+      const bNum = tableSortValue(b.name);
+      if (aNum !== null && bNum !== null && aNum !== bNum) return aNum - bNum;
+      if (aNum !== null && bNum === null) return -1;
+      if (aNum === null && bNum !== null) return 1;
+      return String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric: true, sensitivity: 'base' });
+    });
   }
 
   function ordersRows(orders) {
@@ -647,12 +696,13 @@
     const hourly   = data.hourly       || [];
     const tables   = data.tables       || [];
     const orders   = data.recentOrders || [];
+    const allOrders = data.allOrders    || [];
     const products = data.products     || [];
     const suffix   = isDesktop() ? 'd' : 'm';
 
     // KPIs
     document.getElementById('kpi-total').textContent   = fmt(data.totalSales);
-    document.getElementById('kpi-orders').textContent  = orders.length;
+    document.getElementById('kpi-orders').textContent  = allOrders.length;
     document.getElementById('kpi-tables').textContent  = tables.filter(t=>t.active).length;
     document.getElementById('kpi-waiters').textContent = waiters.length;
 
@@ -683,7 +733,7 @@
   // ── Fetch ──
   async function fetchData() {
     try {
-      const url = '/api/sales/today' + (clientParam ? '?client=' + encodeURIComponent(clientParam) : '');
+      const url = '/api/sales/today' + (activeClient ? '?client=' + encodeURIComponent(activeClient) : '');
       const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
       if (res.status === 401) { sessionStorage.clear(); window.location.href = '/index.html'; return; }
       const data = await res.json();
@@ -718,5 +768,6 @@
   fetchData();
   setInterval(fetchData, 30000);
 </script>
+  <script src="/pwa.js" defer></script>
 </body>
 </html>
