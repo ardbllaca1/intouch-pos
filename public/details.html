@@ -97,6 +97,18 @@
         <div class="summary-val" id="kuzhinaVal">0.00€</div>
       </div>
       <div class="summary-row">
+        <div class="summary-label">Pizza</div>
+        <div class="summary-val" id="pizzaVal">0.00€</div>
+      </div>
+      <div class="summary-row">
+        <div class="summary-label">Sallatat</div>
+        <div class="summary-val" id="sallatatVal">0.00€</div>
+      </div>
+      <div class="summary-row">
+        <div class="summary-label">Akulloret</div>
+        <div class="summary-val" id="akulloretVal">0.00€</div>
+      </div>
+      <div class="summary-row">
         <div class="summary-label">Sipas Kamarierit</div>
         <div></div>
       </div>
@@ -195,6 +207,9 @@
         document.getElementById('totalVal').textContent = fmt(data.totalSales);
         document.getElementById('banakuVal').textContent = fmt(departmentTotal(data.byDepartment, 'Banaku'));
         document.getElementById('kuzhinaVal').textContent = fmt(departmentTotal(data.byDepartment, 'Kuzhina'));
+        document.getElementById('pizzaVal').textContent = fmt(departmentTotal(data.byDepartment, 'Pizza'));
+        document.getElementById('sallatatVal').textContent = fmt(departmentTotal(data.byDepartment, 'Sallatat'));
+        document.getElementById('akulloretVal').textContent = fmt(departmentTotal(data.byDepartment, 'Akulloret'));
         renderWaiters(Array.isArray(data.byWaiter) ? data.byWaiter : []);
         renderChart(Array.isArray(data.hourly) ? data.hourly : []);
       } catch (err) {

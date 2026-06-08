@@ -189,7 +189,7 @@
     .waiter-total { font-size: 12px; font-weight: 700; flex-shrink: 0; }
 
     /* ── DEPARTMENT ── */
-    .dept-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .dept-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
     .dept-card {
       background: var(--surface2); border: 1px solid var(--border);
       border-radius: 10px; padding: 14px; text-align: center;
@@ -591,8 +591,20 @@
 
   function deptHTML(depts) {
     if (!depts.length) return '<div class="loading">Nuk ka të dhëna</div>';
-    const icons  = {'Banaku':'🍹','Kuzhina':'🍳'};
-    const colors = {'Banaku':'var(--accent)','Kuzhina':'var(--green)'};
+    const icons = {
+      'Banaku':'🍹',
+      'Kuzhina':'🍳',
+      'Pizza':'🍕',
+      'Sallatat':'🥗',
+      'Akulloret':'🍨'
+    };
+    const colors = {
+      'Banaku':'var(--accent)',
+      'Kuzhina':'var(--green)',
+      'Pizza':'#ef4444',
+      'Sallatat':'#22c55e',
+      'Akulloret':'#ec4899'
+    };
     return depts.map(d=>`
       <div class="dept-card">
         <div class="dept-icon">${icons[d.name]||'📦'}</div>
@@ -609,7 +621,7 @@
       type: 'doughnut',
       data: {
         labels: depts.map(d=>d.name),
-        datasets:[{ data: depts.map(d=>d.total), backgroundColor:['#6366f1','#10b981','#f59e0b'], borderWidth:0, hoverOffset:4 }]
+        datasets:[{ data: depts.map(d=>d.total), backgroundColor:['#6366f1','#10b981','#ef4444','#22c55e','#ec4899'], borderWidth:0, hoverOffset:4 }]
       },
       options: {
         plugins:{ legend:{ labels:{ color:'#64748b', font:{size:11}, boxWidth:12 } } },

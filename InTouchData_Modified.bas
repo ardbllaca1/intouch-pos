@@ -127,11 +127,14 @@ Private Function GetByWaiter(today As String) As String
     On Error GoTo ErrHandler
 
     Dim sql As String
-    sql = "SELECT u.UserPassword AS emri, " & _
+    sql = "SELECT IIf(IsNull(u.UserPassword) OR Trim(CStr(Nz(u.UserPassword,'')))='', " & _
+          "           CStr(f.kam), CStr(u.UserPassword)) AS emri, " & _
           "       Sum(f.[sasia]*f.[qmimishites]) AS totali " & _
           "FROM [tbldetalet e faturimit] AS f " & _
-          "INNER JOIN tblUser AS u ON CStr(f.kam) = CStr(u.UserName) " & _
-          "GROUP BY u.UserPassword " & _
+          "LEFT JOIN tblUser AS u ON CStr(f.kam) = CStr(u.UserName) " & _
+          "WHERE f.kam IS NOT NULL " & _
+          "GROUP BY IIf(IsNull(u.UserPassword) OR Trim(CStr(Nz(u.UserPassword,'')))='', " & _
+          "                 CStr(f.kam), CStr(u.UserPassword)) " & _
           "ORDER BY Sum(f.[sasia]*f.[qmimishites]) DESC"
 
     Dim rs As DAO.Recordset
@@ -163,18 +166,25 @@ ErrHandler:
 End Function
 
 ' ================================================================
-'  SALES BY DEPARTMENT (Banaku=B, Kuzhina=K from tblprodukti.nj2)
+'  SALES BY DEPARTMENT
+'  B=Banaku, K=Kuzhina, P=Pizza, S=Sallatat, A=Akulloret
 ' ================================================================
 Private Function GetByDepartment(today As String) As String
     On Error GoTo ErrHandler
 
     Dim sql As String
-    sql = "SELECT IIf(p.nj2='B','Banaku','Kuzhina') AS departamenti, " & _
+    sql = "SELECT IIf(p.nj2='B','Banaku'," & _
+          "       IIf(p.nj2='K','Kuzhina'," & _
+          "       IIf(p.nj2='P','Pizza'," & _
+          "       IIf(p.nj2='S','Sallatat','Akulloret')))) AS departamenti, " & _
           "       Sum(f.[sasia]*f.[qmimishites]) AS totali " & _
           "FROM [tbldetalet e faturimit] AS f " & _
           "INNER JOIN tblprodukti AS p ON f.fKeyProductID = p.pkeyProductID " & _
-          "WHERE p.nj2 IN ('B','K') " & _
-          "GROUP BY IIf(p.nj2='B','Banaku','Kuzhina') " & _
+          "WHERE p.nj2 IN ('B','K','P','S','A') " & _
+          "GROUP BY IIf(p.nj2='B','Banaku'," & _
+          "         IIf(p.nj2='K','Kuzhina'," & _
+          "         IIf(p.nj2='P','Pizza'," & _
+          "         IIf(p.nj2='S','Sallatat','Akulloret')))) " & _
           "ORDER BY Sum(f.[sasia]*f.[qmimishites]) DESC"
 
     Dim rs As DAO.Recordset

@@ -273,7 +273,10 @@ Example payload:
   ],
   "byDepartment": [
     { "name": "Banaku", "total": 800 },
-    { "name": "Kuzhina", "total": 434.5 }
+    { "name": "Kuzhina", "total": 434.5 },
+    { "name": "Pizza", "total": 250 },
+    { "name": "Sallatat", "total": 120 },
+    { "name": "Akulloret", "total": 90 }
   ],
   "hourly": [
     { "hour": "10-11", "count": 5 }
