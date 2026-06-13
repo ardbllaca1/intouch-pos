@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
-  <title>Dashboard</title>
+  <title>Kontrolna tabla</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -307,85 +307,85 @@
     </div>
   </div>
   <div class="topbar-right">
-    <div class="badge-live"><div class="dot"></div> Live</div>
+    <div class="badge-live"><div class="dot"></div> Uživo</div>
     <span id="last-updated" style="font-size:11px;color:var(--muted);display:none"></span>
-    <button id="btn-refresh" class="btn">↻ <span class="hide-mobile">Rifresko</span></button>
-    <button id="btn-logout" class="btn btn-logout">Dil</button>
+    <button id="btn-refresh" class="btn">↻ <span class="hide-mobile">Osveži</span></button>
+    <button id="btn-logout" class="btn btn-logout">Odjava</button>
   </div>
 </div>
 
 <!-- UPDATE BAR (mobile only) -->
-<div class="update-bar" id="update-bar">Duke ngarkuar...</div>
+<div class="update-bar" id="update-bar">Učitavanje...</div>
 
 <!-- PAGE -->
 <div class="page">
 
   <!-- KPIs always full width -->
-  <div class="section-label">Pasqyra e Ditës</div>
+  <div class="section-label">Pregled dana</div>
   <div class="kpi-grid">
     <div class="stat-card">
       <div class="stat-icon si-green">💰</div>
-      <div class="stat-label">Shitjet Sot</div>
+      <div class="stat-label">Današnja prodaja</div>
       <div class="stat-value sv-green" id="kpi-total">—</div>
-      <div class="stat-sub">Të gjitha departamentet</div>
+      <div class="stat-sub">Sva odeljenja</div>
     </div>
     <div class="stat-card">
       <div class="stat-icon si-accent">🧾</div>
-      <div class="stat-label">Porositë</div>
+      <div class="stat-label">Porudžbine</div>
       <div class="stat-value sv-accent" id="kpi-orders">—</div>
-      <div class="stat-sub">Linja sot</div>
+      <div class="stat-sub">Stavke danas</div>
     </div>
     <div class="stat-card">
       <div class="stat-icon si-yellow">🍽️</div>
-      <div class="stat-label">Tavolinat</div>
+      <div class="stat-label">Stolovi</div>
       <div class="stat-value" id="kpi-tables">—</div>
-      <div class="stat-sub">Aktive sot</div>
+      <div class="stat-sub">Aktivni danas</div>
     </div>
     <div class="stat-card">
       <div class="stat-icon si-purple">👨‍🍳</div>
-      <div class="stat-label">Kamarierët</div>
+      <div class="stat-label">Konobari</div>
       <div class="stat-value" id="kpi-waiters">—</div>
-      <div class="stat-sub">Aktiv sot</div>
+      <div class="stat-sub">Aktivni danas</div>
     </div>
   </div>
 
   <!-- NAV -->
-  <div class="section-label">Navigimi</div>
+  <div class="section-label">Navigacija</div>
   <div class="nav-grid">
-    <a class="nav-card" href="/tables.html">
+    <a class="nav-card" href="/tables-sr.html">
       <div class="nav-card-bar"></div>
-      <div class="nav-card-body">🪑 Tavolinat</div>
+      <div class="nav-card-body">🪑 Stolovi</div>
     </a>
-    <a class="nav-card" href="/details.html">
+    <a class="nav-card" href="/details-sr.html">
       <div class="nav-card-bar"></div>
-      <div class="nav-card-body">📊 Detajet</div>
+      <div class="nav-card-body">📊 Detalji</div>
     </a>
-    <a class="nav-card" href="/orders.html">
+    <a class="nav-card" href="/orders-sr.html">
       <div class="nav-card-bar"></div>
-      <div class="nav-card-body">📋 Porositë</div>
+      <div class="nav-card-body">📋 Porudžbine</div>
     </a>
-    <a class="nav-card" href="/products.html">
+    <a class="nav-card" href="/products-sr.html">
       <div class="nav-card-bar"></div>
-      <div class="nav-card-body">🏆 Produktet</div>
+      <div class="nav-card-body">🏆 Proizvodi</div>
     </a>
   </div>
 
-  <div class="section-label">Detajet</div>
+  <div class="section-label">Detalji</div>
 
   <!-- MOBILE STACK -->
   <div id="mobile-stack">
 
     <div class="card">
       <div class="card-header">
-        <span class="card-title">Sipas Kamarierit</span>
+        <span class="card-title">Po konobaru</span>
         <span class="card-badge" id="waiter-count-m">—</span>
       </div>
-      <div id="waiter-list-m"><div class="loading"><div class="spinner"></div> Duke ngarkuar...</div></div>
+      <div id="waiter-list-m"><div class="loading"><div class="spinner"></div> Učitavanje...</div></div>
     </div>
 
     <div class="card" style="margin-top:10px">
       <div class="card-header">
-        <span class="card-title">Sipas Departamentit</span>
+        <span class="card-title">Po odeljenju</span>
       </div>
       <div class="dept-row" id="dept-list-m"><div class="loading"><div class="spinner"></div></div></div>
       <div class="chart-wrap"><canvas id="dept-chart-m"></canvas></div>
@@ -393,15 +393,15 @@
 
     <div class="card" style="margin-top:10px">
       <div class="card-header">
-        <span class="card-title">Porositë sipas Orës</span>
-        <span class="card-badge">Sot</span>
+        <span class="card-title">Porudžbine po satima</span>
+        <span class="card-badge">Danas</span>
       </div>
       <div class="chart-wrap"><canvas id="hourly-chart-m"></canvas></div>
     </div>
 
     <div class="card" style="margin-top:10px">
       <div class="card-header">
-        <span class="card-title">Tavolinat</span>
+        <span class="card-title">Stolovi</span>
         <span class="card-badge" id="tables-badge-m">—</span>
       </div>
       <div class="tables-grid" id="tables-grid-m"><div class="loading"><div class="spinner"></div></div></div>
@@ -409,20 +409,20 @@
 
     <div class="card" style="margin-top:10px">
       <div class="card-header">
-        <span class="card-title">Faturat e Fundit</span>
+        <span class="card-title">Poslednji računi</span>
         <span class="card-badge" id="orders-count-m">0</span>
       </div>
       <div class="orders-wrap">
         <table>
-          <thead><tr><th>Produkti</th><th>Sas</th><th>Vlera</th><th>Tav</th><th>Ora</th><th>Kam</th></tr></thead>
-          <tbody id="orders-body-m"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Duke ngarkuar...</td></tr></tbody>
+          <thead><tr><th>Proizvod</th><th>Kol</th><th>Vrednost</th><th>Sto</th><th>Vreme</th><th>Kon</th></tr></thead>
+          <tbody id="orders-body-m"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Učitavanje...</td></tr></tbody>
         </table>
       </div>
     </div>
 
     <div class="card" style="margin-top:10px">
       <div class="card-header">
-        <span class="card-title">Produktet Kryesore</span>
+        <span class="card-title">Najprodavaniji proizvodi</span>
         <span class="card-badge" id="products-count-m">0</span>
       </div>
       <div id="products-list-m"><div class="loading"><div class="spinner"></div></div></div>
@@ -438,7 +438,7 @@
 
       <div class="card">
         <div class="card-header">
-          <span class="card-title">Sipas Kamarierit</span>
+          <span class="card-title">Po konobaru</span>
           <span class="card-badge" id="waiter-count-d">—</span>
         </div>
         <div id="waiter-list-d"><div class="loading"><div class="spinner"></div></div></div>
@@ -446,7 +446,7 @@
 
       <div class="card" style="margin-top:16px">
         <div class="card-header">
-          <span class="card-title">Departamentet</span>
+          <span class="card-title">Odeljenja</span>
         </div>
         <div class="dept-row" id="dept-list-d"><div class="loading"><div class="spinner"></div></div></div>
         <div class="chart-wrap"><canvas id="dept-chart-d"></canvas></div>
@@ -454,7 +454,7 @@
 
       <div class="card" style="margin-top:16px">
         <div class="card-header">
-          <span class="card-title">Tavolinat</span>
+          <span class="card-title">Stolovi</span>
           <span class="card-badge" id="tables-badge-d">—</span>
         </div>
         <div class="tables-grid" id="tables-grid-d"><div class="loading"><div class="spinner"></div></div></div>
@@ -467,28 +467,28 @@
 
       <div class="card">
         <div class="card-header">
-          <span class="card-title">Porositë sipas Orës</span>
-          <span class="card-badge">Sot</span>
+          <span class="card-title">Porudžbine po satima</span>
+          <span class="card-badge">Danas</span>
         </div>
         <div class="chart-wrap" style="height:220px"><canvas id="hourly-chart-d"></canvas></div>
       </div>
 
       <div class="card">
         <div class="card-header">
-          <span class="card-title">Faturat e Fundit</span>
+          <span class="card-title">Poslednji računi</span>
           <span class="card-badge" id="orders-count-d">0</span>
         </div>
         <div class="orders-wrap">
           <table>
-            <thead><tr><th>Produkti</th><th>Sasia</th><th>Vlera</th><th>Tavolina</th><th>Ora</th><th>Kamarieri</th></tr></thead>
-            <tbody id="orders-body-d"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Duke ngarkuar...</td></tr></tbody>
+            <thead><tr><th>Proizvod</th><th>Količina</th><th>Vrednost</th><th>Sto</th><th>Vreme</th><th>Konobar</th></tr></thead>
+            <tbody id="orders-body-d"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Učitavanje...</td></tr></tbody>
           </table>
         </div>
       </div>
 
       <div class="card">
         <div class="card-header">
-          <span class="card-title">Produktet Kryesore</span>
+          <span class="card-title">Najprodavaniji proizvodi</span>
           <span class="card-badge" id="products-count-d">0</span>
         </div>
         <div id="products-list-d"><div class="loading"><div class="spinner"></div></div></div>
@@ -504,8 +504,8 @@
   // ── Auth ──
   const token = sessionStorage.getItem('token');
   if (!token) { window.location.href = '/index.html'; throw new Error('not logged in'); }
-  if (sessionStorage.getItem('language') === 'sr') {
-    window.location.replace('/dashboard-sr.html' + window.location.search);
+  if ((sessionStorage.getItem('language') || 'sq') !== 'sr') {
+    window.location.replace('/dashboard.html' + window.location.search);
     throw new Error('switching dashboard language');
   }
 
@@ -552,7 +552,7 @@
 
   const restaurantName = sessionStorage.getItem('restaurantName') || 'InTouch';
   document.getElementById('restaurantName').textContent = restaurantName;
-  document.title = restaurantName + ' – Dashboard';
+  document.title = restaurantName + ' – Kontrolna tabla';
 
   function logout() { sessionStorage.clear(); window.location.href = '/index.html' + (activeClient ? '?client=' + activeClient : ''); }
 
@@ -574,13 +574,13 @@
   let charts = {};
 
   function fmt(n) {
-    return parseFloat(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'€';
+    return parseFloat(n||0).toLocaleString('sr-Latn-RS',{minimumFractionDigits:2,maximumFractionDigits:2})+'€';
   }
   function formatDate(d) { return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`; }
 
   // ── Render helpers ──
   function waiterHTML(waiters) {
-    if (!waiters.length) return '<div class="loading">Nuk ka të dhëna</div>';
+    if (!waiters.length) return '<div class="loading">Nema podataka</div>';
     const max = Math.max(...waiters.map(w=>w.total), 1);
     return waiters.map(w=>`
       <div class="waiter-row">
@@ -594,7 +594,7 @@
   }
 
   function deptHTML(depts) {
-    if (!depts.length) return '<div class="loading">Nuk ka të dhëna</div>';
+    if (!depts.length) return '<div class="loading">Nema podataka</div>';
     const icons = {
       'Banaku':'🍹',
       'Kuzhina':'🍳',
@@ -614,7 +614,7 @@
     return depts.map(d=>`
       <div class="dept-card">
         <div class="dept-icon">${icons[d.name]||'📦'}</div>
-        <div class="dept-name">${d.name}</div>
+        <div class="dept-name">${departmentLabel(d.name)}</div>
         <div class="dept-val" style="color:${colors[d.name]||'var(--text)'}">${fmt(d.total)}</div>
       </div>`).join('');
   }
@@ -627,6 +627,17 @@
     return names
       .map(name => ({ name, total: totals.get(name) || 0 }))
       .filter(department => department.total > 0);
+  }
+
+  function departmentLabel(name) {
+    return {
+      'Banaku':'Šank',
+      'Kuzhina':'Kuhinja',
+      'Pizza':'Pica',
+      'Sallatat':'Salate',
+      'Akulloret':'Sladoledi',
+      'Tjera':'Ostalo'
+    }[name] || name;
   }
 
   function deptChartOpts(depts, canvasId) {
@@ -644,7 +655,7 @@
     charts[canvasId] = new Chart(ctx.getContext('2d'), {
       type: 'doughnut',
       data: {
-        labels: depts.map(d=>d.name),
+        labels: depts.map(d=>departmentLabel(d.name)),
         datasets:[{ data: depts.map(d=>d.total), backgroundColor:depts.map(d=>chartColors[d.name]||'#64748b'), borderWidth:0, hoverOffset:4 }]
       },
       options: {
@@ -663,7 +674,7 @@
       data: {
         labels: hourly.map(h=>h.hour),
         datasets:[{
-          label:'Porosi', data: hourly.map(h=>h.count),
+          label:'Porudžbine', data: hourly.map(h=>h.count),
           backgroundColor:'rgba(99,102,241,0.5)', borderColor:'#6366f1',
           borderWidth:1, borderRadius:4
         }]
@@ -680,7 +691,7 @@
   }
 
   function tablesHTML(tables) {
-    if (!tables.length) return '<div class="loading">Nuk ka të dhëna</div>';
+    if (!tables.length) return '<div class="loading">Nema podataka</div>';
     return sortTables(tables).map(t=>`<div class="table-cell ${t.active?'active':'inactive'}">${t.name}</div>`).join('');
   }
 
@@ -702,7 +713,7 @@
   }
 
   function ordersRows(orders) {
-    if (!orders.length) return `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Nuk ka porosi ende.</td></tr>`;
+    if (!orders.length) return `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Još nema porudžbina.</td></tr>`;
     return orders.map(o=>`
       <tr>
         <td>${o.produkti}</td>
@@ -715,7 +726,7 @@
   }
 
   function productsHTML(products) {
-    if (!products.length) return '<div class="loading">Nuk ka të dhëna</div>';
+    if (!products.length) return '<div class="loading">Nema podataka</div>';
     return products.slice(0,15).map((p,i)=>`
       <div class="product-row">
         <div class="product-rank">${i+1}</div>
@@ -743,7 +754,7 @@
     document.getElementById('kpi-waiters').textContent = waiters.length;
 
     // Waiters
-    document.getElementById(`waiter-count-${suffix}`).textContent = waiters.length + ' kamarierë';
+    document.getElementById(`waiter-count-${suffix}`).textContent = waiters.length + ' konobara';
     document.getElementById(`waiter-list-${suffix}`).innerHTML    = waiterHTML(waiters);
 
     // Depts
@@ -754,7 +765,7 @@
     hourlyChartOpts(hourly, `hourly-chart-${suffix}`);
 
     // Tables
-    document.getElementById(`tables-badge-${suffix}`).textContent = tables.filter(t=>t.active).length + ' aktive / ' + tables.length + ' gjithsej';
+    document.getElementById(`tables-badge-${suffix}`).textContent = tables.filter(t=>t.active).length + ' aktivno / ' + tables.length + ' ukupno';
     document.getElementById(`tables-grid-${suffix}`).innerHTML    = tablesHTML(tables);
 
     // Orders
@@ -762,7 +773,7 @@
     document.getElementById(`orders-body-${suffix}`).innerHTML    = ordersRows(orders);
 
     // Products
-    document.getElementById(`products-count-${suffix}`).textContent = products.length + ' produkte';
+    document.getElementById(`products-count-${suffix}`).textContent = products.length + ' proizvoda';
     document.getElementById(`products-list-${suffix}`).innerHTML    = productsHTML(products);
   }
 
@@ -778,7 +789,7 @@
       document.getElementById('dateDisplay').textContent = formatDate(date);
 
       const now = new Date();
-      const ts = 'Përditësuar: ' + now.getHours() + ':' +
+      const ts = 'Ažurirano: ' + now.getHours() + ':' +
         String(now.getMinutes()).padStart(2,'0') + ':' +
         String(now.getSeconds()).padStart(2,'0');
       document.getElementById('update-bar').textContent   = ts;
@@ -787,7 +798,7 @@
       renderAll(data);
     } catch(err) {
       console.error(err);
-      const msg = '⚠ Gabim gjatë ngarkimit';
+      const msg = '⚠ Greška pri učitavanju';
       document.getElementById('update-bar').textContent   = msg;
       document.getElementById('last-updated').textContent = msg;
     }

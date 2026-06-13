@@ -2,7 +2,7 @@
   "name": "InTouch Dashboard",
   "short_name": "InTouch",
   "description": "Live dashboard for InTouch POS sales, tables, orders, and products.",
-  "start_url": "/dashboard.html",
+  "start_url": "/index.html",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

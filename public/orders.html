@@ -109,6 +109,10 @@
   <script>
     const token = sessionStorage.getItem('token');
     if (!token) { window.location.href = '/index.html'; throw new Error('No token'); }
+    if (sessionStorage.getItem('language') === 'sr') {
+      window.location.replace('/orders-sr.html' + window.location.search);
+      throw new Error('switching page language');
+    }
 
     function hostClient() {
       const rootDomain = 'intouch-data.com';

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="sq">
+<html lang="sr-Latn">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <title>Tavolinat</title>
+  <title>Stolovi</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     :root {
@@ -147,22 +147,22 @@
       <div class="logo">IT</div>
       <div class="topbar-titles">
         <h1 id="restaurantName">InTouch</h1>
-        <div class="topbar-date">Tavolinat</div>
+        <div class="topbar-date">Stolovi</div>
       </div>
     </div>
-    <button id="btn-back" class="btn">← Kthehu</button>
+    <button id="btn-back" class="btn">← Nazad</button>
   </div>
 
   <main class="page">
     <section class="card">
-      <h2 class="card-title">Tavolinat</h2>
+      <h2 class="card-title">Stolovi</h2>
       <div class="legend">
-        <div class="legend-item"><span class="swatch swatch-green"></span>Ka porosi aktive</div>
-        <div class="legend-item"><span class="swatch swatch-red"></span>S'ka porosi aktive</div>
+        <div class="legend-item"><span class="swatch swatch-green"></span>Ima aktivne porudžbine</div>
+        <div class="legend-item"><span class="swatch swatch-red"></span>Nema aktivnih porudžbina</div>
       </div>
       <div id="tablesGrid" class="tables-grid"></div>
       <section id="tableDetails" class="details-card" aria-live="polite">
-        <div class="empty">Zgjidh nje tavoline per te pare detajet e dites.</div>
+        <div class="empty">Izaberite sto za prikaz detalja dana.</div>
       </section>
     </section>
   </main>
@@ -170,8 +170,8 @@
   <script>
     const token = sessionStorage.getItem('token');
     if (!token) { window.location.href = '/index.html'; throw new Error('No token'); }
-    if (sessionStorage.getItem('language') === 'sr') {
-      window.location.replace('/tables-sr.html' + window.location.search);
+    if ((sessionStorage.getItem('language') || 'sq') !== 'sr') {
+      window.location.replace('/tables.html' + window.location.search);
       throw new Error('switching page language');
     }
 
@@ -187,7 +187,7 @@
     const clientParam = hostClient() || new URLSearchParams(window.location.search).get('client') || sessionStorage.getItem('client') || '';
     const restaurantName = sessionStorage.getItem('restaurantName') || 'InTouch';
     document.getElementById('restaurantName').textContent = restaurantName;
-    document.title = restaurantName + ' – Tavolinat';
+    document.title = restaurantName + ' – Stolovi';
     let selectedTableName = '';
     let latestData = { tables: [], allOrders: [] };
 
@@ -206,7 +206,7 @@
     }
 
     function backToDashboard() {
-      window.location.href = '/dashboard.html' + (clientParam ? '?client=' + encodeURIComponent(clientParam) : '');
+      window.location.href = '/dashboard-sr.html' + (clientParam ? '?client=' + encodeURIComponent(clientParam) : '');
     }
 
     function tableSortValue(name) {
@@ -230,7 +230,7 @@
       const grid = document.getElementById('tablesGrid');
       tables = sortTables(tables);
       if (!tables.length) {
-        grid.innerHTML = '<div class="empty">Nuk ka tavolina sot.</div>';
+        grid.innerHTML = '<div class="empty">Danas nema stolova.</div>';
         renderTableDetails(null, []);
         return;
       }
@@ -284,7 +284,7 @@
     function renderTableDetails(table, orders) {
       const box = document.getElementById('tableDetails');
       if (!table) {
-        box.innerHTML = '<div class="empty">Zgjidh nje tavoline per te pare detajet e dites.</div>';
+        box.innerHTML = '<div class="empty">Izaberite sto za prikaz detalja dana.</div>';
         return;
       }
       const total = orders.reduce((sum, o) => sum + Number(o.vlera || 0), 0);
@@ -294,16 +294,16 @@
       const waiters = uniqueValues(orders, 'kam');
       const times = orders.map(o => o.time).filter(Boolean).sort();
       const statusClass = table.active ? 'active' : 'inactive';
-      const statusText = table.active ? 'Aktive' : 'Pa porosi aktive';
+      const statusText = table.active ? 'Aktivan' : 'Nema aktivnih porudžbina';
       const rows = orders.length ? orders.map(o => {
         const current = table.active && hasMarkers && isCurrentOrder(o);
         const historical = !table.active || (hasMarkers && !current);
         const rowClass = current ? 'row-current' : (historical ? 'row-previous' : '');
         const state = current
-          ? '<span class="order-state current">Aktive</span>'
+          ? '<span class="order-state current">Aktivno</span>'
           : historical
-            ? '<span class="order-state previous">Me heret</span>'
-            : '<span class="order-state previous">Pa shenje</span>';
+            ? '<span class="order-state previous">Ranije</span>'
+            : '<span class="order-state previous">Bez oznake</span>';
         return `
         <tr class="${rowClass}">
           <td>${escapeHtml(o.time || '-')}</td>
@@ -313,29 +313,29 @@
           <td>${state}</td>
           <td class="amount">${fmt(o.vlera)}</td>
         </tr>`;
-      }).join('') : '<tr><td colspan="6" class="empty">Nuk ka porosi per kete tavoline sot.</td></tr>';
+      }).join('') : '<tr><td colspan="6" class="empty">Danas nema porudžbina za ovaj sto.</td></tr>';
 
       box.innerHTML = `
         <div class="details-head">
           <div>
             <div class="details-title">${escapeHtml(table.name || '-')}</div>
-            <div class="details-subtitle">Detajet per diten e sotme</div>
+            <div class="details-subtitle">Detalji za današnji dan</div>
           </div>
           <span class="status-pill ${statusClass}">${statusText}</span>
         </div>
         <div class="summary-grid">
-          <div class="summary-box"><div class="summary-label">Totali</div><div class="summary-value">${fmt(total)}</div></div>
-          <div class="summary-box"><div class="summary-label">Produkte</div><div class="summary-value">${qty}</div></div>
-          <div class="summary-box"><div class="summary-label">Aktive tani</div><div class="summary-value">${table.active ? (hasMarkers ? currentOrders.length : '-') : 0}</div></div>
-          <div class="summary-box"><div class="summary-label">Kamarieret</div><div class="summary-value">${escapeHtml(waiters.join(', ') || '-')}</div></div>
-          <div class="summary-box"><div class="summary-label">Ora</div><div class="summary-value">${escapeHtml(times.length ? times[0] + ' - ' + times[times.length - 1] : '-')}</div></div>
+          <div class="summary-box"><div class="summary-label">Ukupno</div><div class="summary-value">${fmt(total)}</div></div>
+          <div class="summary-box"><div class="summary-label">Proizvodi</div><div class="summary-value">${qty}</div></div>
+          <div class="summary-box"><div class="summary-label">Trenutno aktivno</div><div class="summary-value">${table.active ? (hasMarkers ? currentOrders.length : '-') : 0}</div></div>
+          <div class="summary-box"><div class="summary-label">Konobari</div><div class="summary-value">${escapeHtml(waiters.join(', ') || '-')}</div></div>
+          <div class="summary-box"><div class="summary-label">Vreme</div><div class="summary-value">${escapeHtml(times.length ? times[0] + ' - ' + times[times.length - 1] : '-')}</div></div>
         </div>
         <div class="session-note">${table.active
-          ? (hasMarkers ? 'Produktet aktive jane te shenuara me jeshile.' : 'Te dhenat aktuale nuk dergojne shenje per seancen aktive, ndaj porosite shfaqen pa dallim.')
-          : 'Tavolina eshte e mbyllur; te gjitha porosite e saj shfaqen si Me heret.'}</div>
+          ? (hasMarkers ? 'Aktivni proizvodi su označeni zelenom bojom.' : 'Trenutni podaci nemaju oznaku aktivne sesije, pa se porudžbine prikazuju bez razlike.')
+          : 'Sto je zatvoren; sve njegove porudžbine prikazane su kao Ranije.'}</div>
         <div class="orders-wrap">
           <table>
-            <thead><tr><th>Ora</th><th>Produkti</th><th>Sasia</th><th>Kamarieri</th><th>Statusi</th><th style="text-align:right">Vlera</th></tr></thead>
+            <thead><tr><th>Vreme</th><th>Proizvod</th><th>Količina</th><th>Konobar</th><th>Status</th><th style="text-align:right">Vrednost</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>

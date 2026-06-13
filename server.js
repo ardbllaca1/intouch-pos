@@ -29,6 +29,7 @@ db.exec(`
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     subdomain   TEXT    UNIQUE NOT NULL,
     name        TEXT    NOT NULL,
+    language    TEXT    NOT NULL DEFAULT 'sq',
     created_at  TEXT    DEFAULT (datetime('now'))
   );
 
@@ -120,6 +121,7 @@ function ensureColumn(tableName, columnName, definition) {
 ensureColumn('orders', 'is_active', 'INTEGER DEFAULT 0');
 ensureColumn('orders', 'session_id', 'TEXT');
 ensureColumn('tables_status', 'opened_at', 'TEXT');
+ensureColumn('clients', 'language', "TEXT NOT NULL DEFAULT 'sq'");
 
 // ── Middleware ──────────────────────────────────────────────────
 app.use(helmet({
@@ -134,7 +136,6 @@ app.use(helmet({
 }));
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Helpers ─────────────────────────────────────────────────────
 function getSubdomain(req) {
@@ -157,6 +158,17 @@ function getSubdomain(req) {
   const clients = db.prepare('SELECT subdomain FROM clients LIMIT 2').all();
   return clients.length === 1 ? clients[0].subdomain : null;
 }
+
+app.get(['/', '/index.html', '/index-sr.html'], (req, res) => {
+  const subdomain = getSubdomain(req);
+  const client = subdomain
+    ? db.prepare('SELECT language FROM clients WHERE subdomain = ?').get(subdomain)
+    : null;
+  const loginPage = client && client.language === 'sr' ? 'index-sr.html' : 'index.html';
+  res.sendFile(path.join(__dirname, 'public', loginPage));
+});
+
+app.use(express.static(path.join(__dirname, 'public')));
 
 function todayDate() {
   return new Date().toISOString().split('T')[0];
@@ -189,8 +201,14 @@ function apiKeyMiddleware(req, res, next) {
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   const subdomain = getSubdomain(req);
+  const client = subdomain
+    ? db.prepare('SELECT * FROM clients WHERE subdomain = ?').get(subdomain)
+    : null;
+  const isSerbian = client && client.language === 'sr';
   if (!username || !password) {
-    return res.status(400).json({ error: 'Username dhe fjalëkalimi janë të nevojshëm' });
+    return res.status(400).json({
+      error: isSerbian ? 'Korisničko ime i lozinka su obavezni' : 'Username dhe fjalëkalimi janë të nevojshëm'
+    });
   }
   if (!subdomain) {
     return res.status(400).json({ error: 'Mungon klienti. Hap linkun me ?client=emri ose perdor subdomain-in.' });
@@ -198,12 +216,16 @@ app.post('/api/login', (req, res) => {
   const user = db.prepare(
     'SELECT * FROM users WHERE subdomain = ? AND username = ?'
   ).get(subdomain, username);
-  if (!user) return res.status(401).json({ error: 'Kredencialet janë të gabuara' });
+  if (!user) return res.status(401).json({ error: isSerbian ? 'Pogrešni podaci za prijavu' : 'Kredencialet janë të gabuara' });
   const valid = bcrypt.compareSync(password, user.password);
-  if (!valid) return res.status(401).json({ error: 'Kredencialet janë të gabuara' });
-  const client = db.prepare('SELECT * FROM clients WHERE subdomain = ?').get(subdomain);
+  if (!valid) return res.status(401).json({ error: isSerbian ? 'Pogrešni podaci za prijavu' : 'Kredencialet janë të gabuara' });
   const token = jwt.sign({ username, subdomain }, JWT_SECRET, { expiresIn: '12h' });
-  res.json({ token, subdomain, restaurantName: client ? client.name : subdomain });
+  res.json({
+    token,
+    subdomain,
+    restaurantName: client ? client.name : subdomain,
+    language: client && client.language === 'sr' ? 'sr' : 'sq'
+  });
 });
 
 // ── Sales data route ────────────────────────────────────────────
@@ -346,13 +368,16 @@ app.post('/api/sales', apiKeyMiddleware, (req, res) => {
 app.post('/api/admin/client', (req, res) => {
   const adminKey = req.headers['x-admin-key'];
   if (adminKey !== process.env.ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' });
-  const { subdomain, name, username, password } = req.body;
+  const { subdomain, name, username, password, language = 'sq' } = req.body;
   if (!subdomain || !name || !username || !password) {
     return res.status(400).json({ error: 'subdomain, name, username, password required' });
   }
+  if (!['sq', 'sr'].includes(language)) {
+    return res.status(400).json({ error: 'language must be sq or sr' });
+  }
   try {
     const hashedPw = bcrypt.hashSync(password, 10);
-    db.prepare('INSERT INTO clients (subdomain, name) VALUES (?, ?)').run(subdomain.toLowerCase(), name);
+    db.prepare('INSERT INTO clients (subdomain, name, language) VALUES (?, ?, ?)').run(subdomain.toLowerCase(), name, language);
     db.prepare('INSERT INTO users (subdomain, username, password) VALUES (?, ?, ?)').run(subdomain.toLowerCase(), username, hashedPw);
     res.json({ status: 'ok', message: `Client '${subdomain}' created` });
   } catch (err) {
@@ -364,7 +389,7 @@ app.post('/api/admin/client', (req, res) => {
 app.get('/api/admin/clients', (req, res) => {
   const adminKey = req.headers['x-admin-key'];
   if (adminKey !== process.env.ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' });
-  const clients = db.prepare('SELECT subdomain, name, created_at FROM clients').all();
+  const clients = db.prepare('SELECT subdomain, name, language, created_at FROM clients').all();
   res.json(clients);
 });
 

@@ -1,16 +1,26 @@
-const CACHE_NAME = 'intouch-pwa-v1';
+const CACHE_NAME = 'intouch-pwa-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
+  '/index-sr.html',
   '/dashboard.html',
+  '/dashboard-sr.html',
   '/admin.html',
+  '/admin-sr.html',
   '/details.html',
+  '/details-sr.html',
   '/kitchen.html',
+  '/kitchen-sr.html',
   '/orders.html',
+  '/orders-sr.html',
   '/pos.html',
+  '/pos-sr.html',
   '/products.html',
+  '/products-sr.html',
   '/tables.html',
+  '/tables-sr.html',
   '/offline.html',
+  '/offline-sr.html',
   '/manifest.webmanifest',
   '/pwa.js',
   '/icons/icon.svg'
@@ -46,7 +56,10 @@ self.addEventListener('fetch', event => {
           caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
           return response;
         })
-        .catch(() => caches.match(request).then(cached => cached || caches.match('/offline.html')))
+        .catch(() => caches.match(request).then(cached => {
+          if (cached) return cached;
+          return caches.match(url.pathname.includes('-sr') ? '/offline-sr.html' : '/offline.html');
+        }))
     );
     return;
   }

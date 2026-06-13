@@ -21,6 +21,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px so
 <script>
 const subdomain = new URLSearchParams(location.search).get('client') || sessionStorage.getItem('subdomain') || 'demo';
 const token = sessionStorage.getItem('token'); if(!token) location.href='/index.html';
+if (sessionStorage.getItem('language') === 'sr') location.replace('/admin-sr.html' + location.search);
 const headers = {'Content-Type':'application/json',Authorization:`Bearer ${token}`,'x-subdomain':subdomain};
 const q=s=>document.querySelector(s), qa=s=>[...document.querySelectorAll(s)];
 qa('.tabs button').forEach(b=>b.onclick=()=>{ qa('.panel').forEach(p=>p.classList.remove('active')); q('#'+b.dataset.p).classList.add('active'); });

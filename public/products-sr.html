@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="sq">
+<html lang="sr-Latn">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <title>Produktet e Shitura</title>
+  <title>Prodati proizvodi</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
     :root {
@@ -72,32 +72,32 @@
       <div class="logo">IT</div>
       <div class="topbar-titles">
         <h1 id="restaurantName">InTouch</h1>
-        <div class="topbar-date">Produktet e Shitura</div>
+        <div class="topbar-date">Prodati proizvodi</div>
       </div>
     </div>
-    <button id="btn-back-top" class="btn">← Kthehu</button>
+    <button id="btn-back-top" class="btn">← Nazad</button>
   </div>
 
   <main class="page">
     <section class="card">
-      <h2 class="title">Produktet e Shitura</h2>
+      <h2 class="title">Prodati proizvodi</h2>
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>produkti</th>
-              <th>sasia</th>
-              <th>qmimi</th>
-              <th>vlera</th>
+              <th>proizvod</th>
+              <th>količina</th>
+              <th>cena</th>
+              <th>vrednost</th>
             </tr>
           </thead>
           <tbody id="productsBody">
-            <tr><td class="empty" colspan="4">Duke ngarkuar...</td></tr>
+            <tr><td class="empty" colspan="4">Učitavanje...</td></tr>
           </tbody>
         </table>
       </div>
       <div class="actions">
-        <button id="btn-back-bottom" class="btn">← Kthehu</button>
+        <button id="btn-back-bottom" class="btn">← Nazad</button>
       </div>
     </section>
   </main>
@@ -105,8 +105,8 @@
   <script>
     const token = sessionStorage.getItem('token');
     if (!token) { window.location.href = '/index.html'; throw new Error('No token'); }
-    if (sessionStorage.getItem('language') === 'sr') {
-      window.location.replace('/products-sr.html' + window.location.search);
+    if ((sessionStorage.getItem('language') || 'sq') !== 'sr') {
+      window.location.replace('/products.html' + window.location.search);
       throw new Error('switching page language');
     }
 
@@ -122,20 +122,20 @@
     const clientParam = hostClient() || new URLSearchParams(window.location.search).get('client') || sessionStorage.getItem('client') || '';
     const restaurantName = sessionStorage.getItem('restaurantName') || 'InTouch';
     document.getElementById('restaurantName').textContent = restaurantName;
-    document.title = restaurantName + ' – Produktet e Shitura';
+    document.title = restaurantName + ' – Prodati proizvodi';
 
     function fmt(n) {
-      return parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
+      return parseFloat(n || 0).toLocaleString('sr-Latn-RS', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
     }
 
     function backToDashboard() {
-      window.location.href = '/dashboard.html' + (clientParam ? '?client=' + encodeURIComponent(clientParam) : '');
+      window.location.href = '/dashboard-sr.html' + (clientParam ? '?client=' + encodeURIComponent(clientParam) : '');
     }
 
     function renderProducts(products) {
       const tbody = document.getElementById('productsBody');
       if (!products.length) {
-        tbody.innerHTML = '<tr><td class="empty" colspan="4">Nuk ka produkte ende.</td></tr>';
+        tbody.innerHTML = '<tr><td class="empty" colspan="4">Još nema proizvoda.</td></tr>';
         return;
       }
       const sorted = [...products].sort((a, b) => (Number(b.sasia) || 0) - (Number(a.sasia) || 0));

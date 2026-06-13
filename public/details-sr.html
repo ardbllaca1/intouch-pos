@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="sq">
+<html lang="sr-Latn">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <title>Detajet e Ditës</title>
+  <title>Detalji dana</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -73,54 +73,54 @@
       <div class="logo">IT</div>
       <div class="topbar-titles">
         <h1 id="restaurantName">InTouch</h1>
-        <div class="topbar-date">Detajet e Ditës</div>
+        <div class="topbar-date">Detalji dana</div>
       </div>
     </div>
-    <button id="btn-back" class="btn">← Kthehu</button>
+    <button id="btn-back" class="btn">← Nazad</button>
   </div>
 
   <main class="page">
-    <h2 class="section-title">Detajet e Ditës</h2>
+    <h2 class="section-title">Detalji dana</h2>
     <div class="section-subtitle" id="todayDate"></div>
 
     <section class="card">
       <div class="summary-row">
-        <div class="summary-label"><strong>Totali</strong></div>
+        <div class="summary-label"><strong>Ukupno</strong></div>
         <div class="summary-val total" id="totalVal">0.00€</div>
       </div>
       <div class="summary-row">
-        <div class="summary-label">Banaku</div>
+        <div class="summary-label">Šank</div>
         <div class="summary-val" id="banakuVal">0.00€</div>
       </div>
       <div class="summary-row">
-        <div class="summary-label">Kuzhina</div>
+        <div class="summary-label">Kuhinja</div>
         <div class="summary-val" id="kuzhinaVal">0.00€</div>
       </div>
       <div class="summary-row">
-        <div class="summary-label">Pizza</div>
+        <div class="summary-label">Pica</div>
         <div class="summary-val" id="pizzaVal">0.00€</div>
       </div>
       <div class="summary-row">
-        <div class="summary-label">Sallatat</div>
+        <div class="summary-label">Salate</div>
         <div class="summary-val" id="sallatatVal">0.00€</div>
       </div>
       <div class="summary-row">
-        <div class="summary-label">Akulloret</div>
+        <div class="summary-label">Sladoledi</div>
         <div class="summary-val" id="akulloretVal">0.00€</div>
       </div>
       <div class="summary-row">
-        <div class="summary-label">Tjera</div>
+        <div class="summary-label">Ostalo</div>
         <div class="summary-val" id="tjeraVal">0.00€</div>
       </div>
       <div class="summary-row">
-        <div class="summary-label">Sipas Kamarierit</div>
+        <div class="summary-label">Po konobaru</div>
         <div></div>
       </div>
       <div id="waitersList" class="waiters"></div>
     </section>
 
     <section class="card">
-      <h3 class="chart-title">Sipas orës</h3>
+      <h3 class="chart-title">Po satima</h3>
       <div class="chart-wrap"><canvas id="hourlyChart"></canvas></div>
     </section>
   </main>
@@ -128,8 +128,8 @@
   <script>
     const token = sessionStorage.getItem('token');
     if (!token) { window.location.href = '/index.html'; throw new Error('No token'); }
-    if (sessionStorage.getItem('language') === 'sr') {
-      window.location.replace('/details-sr.html' + window.location.search);
+    if ((sessionStorage.getItem('language') || 'sq') !== 'sr') {
+      window.location.replace('/details.html' + window.location.search);
       throw new Error('switching page language');
     }
 
@@ -145,7 +145,7 @@
     const clientParam = hostClient() || new URLSearchParams(window.location.search).get('client') || sessionStorage.getItem('client') || '';
     const restaurantName = sessionStorage.getItem('restaurantName') || 'InTouch';
     document.getElementById('restaurantName').textContent = restaurantName;
-    document.title = restaurantName + ' – Detajet e Ditës';
+    document.title = restaurantName + ' – Detalji dana';
 
     let chart;
 
@@ -159,13 +159,13 @@
     }
 
     function backToDashboard() {
-      window.location.href = '/dashboard.html' + (clientParam ? '?client=' + encodeURIComponent(clientParam) : '');
+      window.location.href = '/dashboard-sr.html' + (clientParam ? '?client=' + encodeURIComponent(clientParam) : '');
     }
 
     function renderWaiters(waiters) {
       const list = document.getElementById('waitersList');
       if (!waiters.length) {
-        list.innerHTML = '<div class="empty">Nuk ka të dhëna për kamarierët.</div>';
+        list.innerHTML = '<div class="empty">Nema podataka o konobarima.</div>';
         return;
       }
       list.innerHTML = waiters.map(w => `<div class="waiter"><span class="waiter-name">${w.name || '-'}</span><span class="waiter-total">${fmt(w.total)}</span></div>`).join('');
@@ -179,7 +179,7 @@
         data: {
           labels: hourly.map(h => h.hour),
           datasets: [{
-            label: 'Porosi',
+            label: 'Porudžbine',
             data: hourly.map(h => h.count),
             backgroundColor: 'rgba(99,102,241,0.5)',
             borderColor: '#6366f1',

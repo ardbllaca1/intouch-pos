@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="sq">
+<html lang="sr-Latn">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <title>Produktet e Shitura</title>
+  <title>Lista porudžbina</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
     :root {
@@ -30,11 +30,17 @@
       padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; min-height: 36px;
     }
     .btn:hover { background: var(--border); }
-    .page { max-width: 1200px; margin: 0 auto; padding: 16px; }
+    .page { max-width: 1300px; margin: 0 auto; padding: 16px; }
     .card { background: var(--surface); border:1px solid var(--border); border-radius: var(--radius); padding: 14px; }
     .title { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
-    .table-wrap { border: 1px solid var(--border); border-radius: 10px; overflow: auto; max-height: calc(100vh - 220px); }
-    table { width: 100%; border-collapse: collapse; min-width: 650px; font-size: 13px; }
+    .table-wrap {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: auto;
+      max-height: calc(100vh - 180px);
+      -webkit-overflow-scrolling: touch;
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 700px; font-size: 13px; }
     thead th {
       position: sticky; top: 0; z-index: 2;
       background: var(--surface);
@@ -44,11 +50,10 @@
       padding: 10px 12px;
       border-bottom: 1px solid var(--border);
     }
-    tbody tr { border-bottom: 1px solid rgba(42,42,58,0.5); }
+    tbody tr { border-bottom: 1px solid rgba(42,42,58,0.5); transition: background 0.15s; }
     tbody tr:hover { background: var(--surface2); }
     tbody td { padding: 10px 12px; }
     .val { color: var(--green); font-weight: 700; }
-    .actions { margin-top: 12px; display:flex; justify-content:flex-end; }
     .empty { text-align:center; color:var(--muted); padding:24px; }
     @media (min-width: 600px) {
       .topbar { height: 60px; padding: 0 24px; }
@@ -72,32 +77,31 @@
       <div class="logo">IT</div>
       <div class="topbar-titles">
         <h1 id="restaurantName">InTouch</h1>
-        <div class="topbar-date">Produktet e Shitura</div>
+        <div class="topbar-date">Lista porudžbina</div>
       </div>
     </div>
-    <button id="btn-back-top" class="btn">← Kthehu</button>
+    <button id="btn-back" class="btn">← Nazad</button>
   </div>
 
   <main class="page">
     <section class="card">
-      <h2 class="title">Produktet e Shitura</h2>
+      <h2 class="title">Lista porudžbina</h2>
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>produkti</th>
-              <th>sasia</th>
-              <th>qmimi</th>
-              <th>vlera</th>
+              <th>proizvod</th>
+              <th>količina</th>
+              <th>vrednost</th>
+              <th>sto</th>
+              <th>vreme</th>
+              <th>konobar</th>
             </tr>
           </thead>
-          <tbody id="productsBody">
-            <tr><td class="empty" colspan="4">Duke ngarkuar...</td></tr>
+          <tbody id="ordersBody">
+            <tr><td class="empty" colspan="6">Učitavanje...</td></tr>
           </tbody>
         </table>
-      </div>
-      <div class="actions">
-        <button id="btn-back-bottom" class="btn">← Kthehu</button>
       </div>
     </section>
   </main>
@@ -105,8 +109,8 @@
   <script>
     const token = sessionStorage.getItem('token');
     if (!token) { window.location.href = '/index.html'; throw new Error('No token'); }
-    if (sessionStorage.getItem('language') === 'sr') {
-      window.location.replace('/products-sr.html' + window.location.search);
+    if ((sessionStorage.getItem('language') || 'sq') !== 'sr') {
+      window.location.replace('/orders.html' + window.location.search);
       throw new Error('switching page language');
     }
 
@@ -122,29 +126,30 @@
     const clientParam = hostClient() || new URLSearchParams(window.location.search).get('client') || sessionStorage.getItem('client') || '';
     const restaurantName = sessionStorage.getItem('restaurantName') || 'InTouch';
     document.getElementById('restaurantName').textContent = restaurantName;
-    document.title = restaurantName + ' – Produktet e Shitura';
+    document.title = restaurantName + ' – Lista porudžbina';
 
     function fmt(n) {
-      return parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
+      return parseFloat(n || 0).toLocaleString('sr-Latn-RS', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
     }
 
     function backToDashboard() {
-      window.location.href = '/dashboard.html' + (clientParam ? '?client=' + encodeURIComponent(clientParam) : '');
+      window.location.href = '/dashboard-sr.html' + (clientParam ? '?client=' + encodeURIComponent(clientParam) : '');
     }
 
-    function renderProducts(products) {
-      const tbody = document.getElementById('productsBody');
-      if (!products.length) {
-        tbody.innerHTML = '<tr><td class="empty" colspan="4">Nuk ka produkte ende.</td></tr>';
+    function renderOrders(orders) {
+      const tbody = document.getElementById('ordersBody');
+      if (!orders.length) {
+        tbody.innerHTML = '<tr><td class="empty" colspan="6">Još nema porudžbina.</td></tr>';
         return;
       }
-      const sorted = [...products].sort((a, b) => (Number(b.sasia) || 0) - (Number(a.sasia) || 0));
-      tbody.innerHTML = sorted.map(p => `
+      tbody.innerHTML = orders.map(o => `
         <tr>
-          <td>${p.produkti || ''}</td>
-          <td>${p.sasia ?? ''}</td>
-          <td>${fmt(p.qmimi)}</td>
-          <td class="val">${fmt(p.vlera)}</td>
+          <td>${o.produkti || ''}</td>
+          <td>${o.sasia ?? ''}</td>
+          <td class="val">${fmt(o.vlera)}</td>
+          <td>${o.tav || ''}</td>
+          <td>${o.time || ''}</td>
+          <td>${o.kam || ''}</td>
         </tr>
       `).join('');
     }
@@ -156,14 +161,14 @@
         });
         if (res.status === 401) { sessionStorage.clear(); window.location.href = '/index.html'; return; }
         const data = await res.json();
-        renderProducts(Array.isArray(data.products) ? data.products : []);
+        const orders = Array.isArray(data.allOrders) ? data.allOrders : (Array.isArray(data.recentOrders) ? data.recentOrders : []);
+        renderOrders(orders);
       } catch (err) {
         console.error(err);
       }
     }
 
-    document.getElementById('btn-back-top').addEventListener('click', backToDashboard);
-    document.getElementById('btn-back-bottom').addEventListener('click', backToDashboard);
+    document.getElementById('btn-back').addEventListener('click', backToDashboard);
     fetchData();
     setInterval(fetchData, 30000);
   </script>

@@ -16,22 +16,25 @@ function usage() {
   console.log(`
 Usage:
   node add-client.js
-  node add-client.js --subdomain cimazone --name "Cima Zone" --username admin --password secret123
+  node add-client.js --subdomain cimazone --name "Cima Zone" --username admin --password secret123 --language sq
   node add-client.js --delete --subdomain cimazone --yes
   node add-client.js --list-users --subdomain cimazone
   node add-client.js --add-user --subdomain cimazone --username manager --password secret123
   node add-client.js --delete-user --subdomain cimazone --username manager --yes
+  node add-client.js --set-language --subdomain cimazone --language sr
 
 Options:
   --subdomain   Client subdomain, e.g. cimazone
   --name        Restaurant/client display name
   --username    Dashboard username. Default: admin
   --password    Dashboard password. Minimum 4 characters
+  --language    Dashboard language: sq or sr. Default: sq
   --force       Update existing client/user instead of failing
   --delete      Delete a client and all dashboard data for that subdomain
   --list-users  List dashboard users for a subdomain
   --add-user    Add or update a dashboard user for a subdomain
   --delete-user Delete a dashboard user from a subdomain
+  --set-language Set an existing client's dashboard language
   --yes         Skip delete confirmation
   --list        List existing clients
   --help        Show this help
@@ -44,7 +47,7 @@ function parseArgs(argv) {
     const arg = argv[i];
     if (!arg.startsWith('--')) continue;
     const key = arg.slice(2);
-    if (key === 'force' || key === 'delete' || key === 'list-users' || key === 'add-user' || key === 'delete-user' || key === 'yes' || key === 'list' || key === 'help') {
+    if (key === 'force' || key === 'delete' || key === 'list-users' || key === 'add-user' || key === 'delete-user' || key === 'set-language' || key === 'yes' || key === 'list' || key === 'help') {
       args[key] = true;
     } else {
       args[key] = argv[i + 1] || '';
@@ -83,6 +86,7 @@ function openDb() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       subdomain TEXT UNIQUE NOT NULL,
       name TEXT NOT NULL,
+      language TEXT NOT NULL DEFAULT 'sq',
       created_at TEXT DEFAULT (datetime('now'))
     );
 
@@ -94,18 +98,20 @@ function openDb() {
       UNIQUE(subdomain, username)
     );
   `);
+  const hasLanguage = db.prepare('PRAGMA table_info(clients)').all().some(col => col.name === 'language');
+  if (!hasLanguage) db.prepare("ALTER TABLE clients ADD COLUMN language TEXT NOT NULL DEFAULT 'sq'").run();
   return db;
 }
 
 function listClients(db) {
-  const rows = db.prepare('SELECT subdomain, name, created_at FROM clients ORDER BY subdomain ASC').all();
+  const rows = db.prepare('SELECT subdomain, name, language, created_at FROM clients ORDER BY subdomain ASC').all();
   if (!rows.length) {
     console.log('No clients found.');
     return;
   }
   console.log('Existing clients:');
   for (const row of rows) {
-    console.log(`- ${row.subdomain} | ${row.name} | ${row.created_at || ''}`);
+    console.log(`- ${row.subdomain} | ${row.name} | ${row.language || 'sq'} | ${row.created_at || ''}`);
   }
 }
 
@@ -133,10 +139,16 @@ async function collectInput(args) {
       result.password = await q.ask('Dashboard password (min 4 chars): ');
     }
 
+    if (!result.language) {
+      const answer = await q.ask('Dashboard language [sq]: ');
+      result.language = answer || 'sq';
+    }
+
     result.subdomain = slugify(result.subdomain);
     result.username = String(result.username || '').trim();
     result.name = String(result.name || '').trim();
     result.password = String(result.password || '');
+    result.language = String(result.language || 'sq').trim().toLowerCase();
 
     return result;
   } finally {
@@ -152,6 +164,7 @@ function validate(input) {
   }
   if (!input.username) throw new Error('Username is required.');
   if (input.password.length < 4) throw new Error('Password must be at least 4 characters.');
+  if (!['sq', 'sr'].includes(input.language)) throw new Error('Language must be sq or sr.');
 }
 
 function saveClient(db, input) {
@@ -164,7 +177,7 @@ function saveClient(db, input) {
 
   const tx = db.transaction(() => {
     if (exists) {
-      db.prepare('UPDATE clients SET name = ? WHERE subdomain = ?').run(input.name, input.subdomain);
+      db.prepare('UPDATE clients SET name = ?, language = ? WHERE subdomain = ?').run(input.name, input.language, input.subdomain);
       db.prepare(`
         INSERT INTO users (subdomain, username, password)
         VALUES (?, ?, ?)
@@ -172,7 +185,7 @@ function saveClient(db, input) {
         DO UPDATE SET password = excluded.password
       `).run(input.subdomain, input.username, hashed);
     } else {
-      db.prepare('INSERT INTO clients (subdomain, name) VALUES (?, ?)').run(input.subdomain, input.name);
+      db.prepare('INSERT INTO clients (subdomain, name, language) VALUES (?, ?, ?)').run(input.subdomain, input.name, input.language);
       db.prepare('INSERT INTO users (subdomain, username, password) VALUES (?, ?, ?)').run(input.subdomain, input.username, hashed);
     }
   });
@@ -184,6 +197,16 @@ function requireClient(db, subdomain) {
   const client = db.prepare('SELECT subdomain, name FROM clients WHERE subdomain = ?').get(subdomain);
   if (!client) throw new Error(`Client "${subdomain}" does not exist.`);
   return client;
+}
+
+function setClientLanguage(db, args) {
+  const subdomain = slugify(args.subdomain);
+  const language = String(args.language || '').trim().toLowerCase();
+  if (!subdomain) throw new Error('Subdomain is required.');
+  if (!['sq', 'sr'].includes(language)) throw new Error('Language must be sq or sr.');
+  requireClient(db, subdomain);
+  db.prepare('UPDATE clients SET language = ? WHERE subdomain = ?').run(language, subdomain);
+  console.log(`Language updated: ${subdomain} -> ${language}`);
 }
 
 function listUsers(db, args) {
@@ -336,6 +359,11 @@ async function main() {
     return;
   }
 
+  if (args['set-language']) {
+    setClientLanguage(db, args);
+    return;
+  }
+
   const input = await collectInput(args);
   validate(input);
   saveClient(db, input);
@@ -344,6 +372,7 @@ async function main() {
   console.log(args.force ? 'Client saved.' : 'Client created.');
   console.log(`Dashboard URL : https://${input.subdomain}.${ROOT_DOMAIN}`);
   console.log(`Username      : ${input.username}`);
+  console.log(`Language      : ${input.language}`);
   console.log('');
   console.log('Access/VBA settings:');
   console.log(`Private Const CLIENT_URL As String = "https://${input.subdomain}.${ROOT_DOMAIN}/api/sales"`);

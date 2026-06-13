@@ -140,7 +140,28 @@ node add-client.js
 Add a client non-interactively:
 
 ```bash
-node add-client.js --subdomain cimazone --name "Cima Zone" --username admin --password secret123
+node add-client.js --subdomain cimazone --name "Cima Zone" --username admin --password secret123 --language sq
+```
+
+Use `--language sr` for a Serbian dashboard. Existing clients default to Albanian (`sq`).
+
+Serbian clients are routed automatically to Serbian versions of:
+
+- Login
+- Dashboard
+- Tables
+- Daily details
+- Orders
+- Products
+- POS
+- Kitchen display
+- Admin
+- Offline page
+
+Change an existing client's dashboard language without changing its users or password:
+
+```bash
+node add-client.js --set-language --subdomain serbian-client --language sr
 ```
 
 Update/reset an existing client user password:
