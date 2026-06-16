@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="sr-Latn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Detalji dana</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --bg:#0a0a0f; --surface:#111118; --surface2:#1a1a24; --border:#2a2a3a;
+      --accent:#6366f1; --accent2:#8b5cf6; --green:#10b981; --red:#ef4444;
+      --yellow:#f59e0b; --text:#f1f5f9; --muted:#64748b; --radius:14px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif; min-height: 100vh; }
+    .topbar {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:0 max(16px, env(safe-area-inset-left)); padding-right:max(16px, env(safe-area-inset-right));
+      height:56px; background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100;
+      backdrop-filter: blur(12px);
+    }
+    .topbar-left { display:flex; align-items:center; gap:10px; min-width:0; }
+    .logo {
+      width:30px; height:30px; border-radius:8px; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+    }
+    .topbar-titles h1 { font-size:15px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .topbar-date { font-size:11px; color:var(--muted); }
+    .btn {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+      padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; min-height: 36px;
+    }
+    .btn:hover { background: var(--border); }
+    .page { max-width: 1000px; margin:0 auto; padding: 16px; }
+    .section-title { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+    .section-subtitle { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+    .card { background: var(--surface); border:1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+    .summary-row {
+      display:grid; grid-template-columns: 1fr auto;
+      padding: 10px 0; border-bottom: 1px solid rgba(42,42,58,0.5); gap:12px;
+    }
+    .summary-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .summary-label { color: var(--muted); font-size: 14px; }
+    .summary-val { text-align:right; font-weight: 700; font-size: 15px; }
+    .summary-val.total { font-size: 20px; color: var(--green); }
+    .waiters { margin-top: 12px; display:flex; flex-direction:column; gap:8px; }
+    .waiter { display:flex; justify-content:space-between; gap:8px; border:1px solid var(--border); border-radius:10px; padding:9px 10px; background: var(--surface2); }
+    .waiter-name { font-size: 14px; }
+    .waiter-total { font-size: 14px; font-weight: 700; color: var(--accent); }
+    .chart-title { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
+    .chart-wrap { height: 320px; position: relative; }
+    .empty { color: var(--muted); text-align:center; padding: 18px 0; }
+    @media (min-width: 600px) {
+      .topbar { height: 60px; padding: 0 24px; }
+      .page { padding: 24px; }
+    }
+    @media (min-width: 900px) {
+      .topbar { height: 64px; padding: 0 32px; }
+      .topbar-titles h1 { font-size: 16px; }
+      .page { padding: 32px; }
+    }
+  </style>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#111118">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml"></head>
+<body>
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">IT</div>
+      <div class="topbar-titles">
+        <h1 id="restaurantName">InTouch</h1>
+        <div class="topbar-date">Detalji dana</div>
+      </div>
+    </div>
+    <button id="btn-back" class="btn">← Nazad</button>
+  </div>
+
+  <main class="page">
+    <h2 class="section-title">Detalji dana</h2>
+    <div class="section-subtitle" id="todayDate"></div>
+
+    <section class="card">
+      <div class="summary-row">
+        <div class="summary-label"><strong>Ukupno</strong></div>
+        <div class="summary-val total" id="totalVal">0.00€</div>
+      </div>
+      <div class="summary-row">
+        <div class="summary-label">Šank</div>
+        <div class="summary-val" id="banakuVal">0.00€</div>
+      </div>
+      <div class="summary-row">
+        <div class="summary-label">Kuhinja</div>
+        <div class="summary-val" id="kuzhinaVal">0.00€</div>
+      </div>
+      <div class="summary-row">
+        <div class="summary-label">Pica</div>
+        <div class="summary-val" id="pizzaVal">0.00€</div>
+      </div>
+      <div class="summary-row">
+        <div class="summary-label">Salate</div>
+        <div class="summary-val" id="sallatatVal">0.00€</div>
+      </div>
+      <div class="summary-row">
+        <div class="summary-label">Sladoledi</div>
+        <div class="summary-val" id="akulloretVal">0.00€</div>
+      </div>
+      <div class="summary-row">
+        <div class="summary-label">Ostalo</div>
+        <div class="summary-val" id="tjeraVal">0.00€</div>
+      </div>
+      <div class="summary-row">
+        <div class="summary-label">Po konobaru</div>
+        <div></div>
+      </div>
+      <div id="waitersList" class="waiters"></div>
+    </section>
+
+    <section class="card">
+      <h3 class="chart-title">Po satima</h3>
+      <div class="chart-wrap"><canvas id="hourlyChart"></canvas></div>
+    </section>
+  </main>
+
+  <script>
+    const token = sessionStorage.getItem('token');
+    if (!token) { window.location.href = '/index.html'; throw new Error('No token'); }
+    if ((sessionStorage.getItem('language') || 'sq') !== 'sr') {
+      window.location.replace('/details.html' + window.location.search);
+      throw new Error('switching page language');
+    }
+
+    function hostClient() {
+      const rootDomain = 'intouch-data.com';
+      const hostname = window.location.hostname.toLowerCase();
+      if (hostname.endsWith('.' + rootDomain) && hostname !== 'www.' + rootDomain) {
+        return hostname.slice(0, -rootDomain.length - 1).split('.')[0];
+      }
+      return '';
+    }
+
+    const clientParam = hostClient() || new URLSearchParams(window.location.search).get('client') || sessionStorage.getItem('client') || '';
+    const restaurantName = sessionStorage.getItem('restaurantName') || 'InTouch';
+    document.getElementById('restaurantName').textContent = restaurantName;
+    document.title = restaurantName + ' – Detalji dana';
+
+    let chart;
+
+    function fmt(n) {
+      return parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
+    }
+
+    function formatDate(value) {
+      const d = value ? new Date(value) : new Date();
+      return d.toLocaleDateString('sq-AL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    function backToDashboard() {
+      window.location.href = '/dashboard-sr.html' + (clientParam ? '?client=' + encodeURIComponent(clientParam) : '');
+    }
+
+    function renderWaiters(waiters) {
+      const list = document.getElementById('waitersList');
+      if (!waiters.length) {
+        list.innerHTML = '<div class="empty">Nema podataka o konobarima.</div>';
+        return;
+      }
+      list.innerHTML = waiters.map(w => `<div class="waiter"><span class="waiter-name">${w.name || '-'}</span><span class="waiter-total">${fmt(w.total)}</span></div>`).join('');
+    }
+
+    function renderChart(hourly) {
+      const ctx = document.getElementById('hourlyChart').getContext('2d');
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: hourly.map(h => h.hour),
+          datasets: [{
+            label: 'Porudžbine',
+            data: hourly.map(h => h.count),
+            backgroundColor: 'rgba(99,102,241,0.5)',
+            borderColor: '#6366f1',
+            borderWidth: 1,
+            borderRadius: 5
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(42,42,58,0.5)' } },
+            y: { ticks: { color: '#64748b', precision: 0 }, grid: { color: 'rgba(42,42,58,0.5)' } }
+          }
+        }
+      });
+    }
+
+    function departmentTotal(items, name) {
+      const found = (items || []).find(d => d.name === name);
+      return found ? found.total : 0;
+    }
+
+    async function fetchData() {
+      try {
+        const res = await fetch('/api/sales/today?client=' + encodeURIComponent(clientParam), {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        if (res.status === 401) { sessionStorage.clear(); window.location.href = '/index.html'; return; }
+        const data = await res.json();
+        document.getElementById('todayDate').textContent = formatDate(data.date);
+        document.getElementById('totalVal').textContent = fmt(data.totalSales);
+        document.getElementById('banakuVal').textContent = fmt(departmentTotal(data.byDepartment, 'Banaku'));
+        document.getElementById('kuzhinaVal').textContent = fmt(departmentTotal(data.byDepartment, 'Kuzhina'));
+        document.getElementById('pizzaVal').textContent = fmt(departmentTotal(data.byDepartment, 'Pizza'));
+        document.getElementById('sallatatVal').textContent = fmt(departmentTotal(data.byDepartment, 'Sallatat'));
+        document.getElementById('akulloretVal').textContent = fmt(departmentTotal(data.byDepartment, 'Akulloret'));
+        document.getElementById('tjeraVal').textContent = fmt(departmentTotal(data.byDepartment, 'Tjera'));
+        renderWaiters(Array.isArray(data.byWaiter) ? data.byWaiter : []);
+        renderChart(Array.isArray(data.hourly) ? data.hourly : []);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    document.getElementById('btn-back').addEventListener('click', backToDashboard);
+    fetchData();
+    setInterval(fetchData, 30000);
+  </script>
+  <script src="/pwa.js" defer></script>
+</body>
+</html>

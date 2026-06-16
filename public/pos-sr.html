@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="sq">
+<html lang="sr-Latn">
 <head>
 <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>POS</title>
@@ -29,7 +29,7 @@ button{min-height:44px} .actions{display:grid;grid-template-columns:1fr 1fr;gap:
 <div class="top"><strong>InTouch POS</strong><span id="waiter"></span></div>
 <div class="layout">
   <section class="panel left active">
-    <button id="toggleFloor">Floor Plan</button>
+    <button id="toggleFloor">Raspored stolova</button>
     <div id="tableList" class="tables"></div>
     <div id="floor" class="floor" style="display:none"></div>
   </section>
@@ -38,20 +38,20 @@ button{min-height:44px} .actions{display:grid;grid-template-columns:1fr 1fr;gap:
     <div id="productGrid" class="products"></div>
   </section>
   <section class="panel right active">
-    <h3 id="orderTitle">Porosia</h3><div id="orderItems"></div>
-    <h2 id="total">Total: 0.00€</h2>
-    <div class="actions"><button id="sendKitchen">Dërgo në kuzhinë</button><button id="payBtn">Paguaj</button></div>
+    <h3 id="orderTitle">Porudžbina</h3><div id="orderItems"></div>
+    <h2 id="total">Ukupno: 0.00€</h2>
+    <div class="actions"><button id="sendKitchen">Pošalji u kuhinju</button><button id="payBtn">Naplati</button></div>
   </section>
 </div>
-<div class="tabs"><button data-tab="left">Tables</button><button data-tab="center">Menu</button><button data-tab="right">Order</button><button id="openPay">Pay</button></div>
-<div id="payModal" class="modal"><div class="card"><h3>Pagesa</h3><p id="payTotal"></p><input id="cash" type="number" step="0.01" placeholder="Cash" /><p id="change"></p><button id="confirmPay">Konfirmo</button><button id="closePay">Mbyll</button></div></div>
+<div class="tabs"><button data-tab="left">Stolovi</button><button data-tab="center">Meni</button><button data-tab="right">Porudžbina</button><button id="openPay">Naplata</button></div>
+<div id="payModal" class="modal"><div class="card"><h3>Naplata</h3><p id="payTotal"></p><input id="cash" type="number" step="0.01" placeholder="Gotovina" /><p id="change"></p><button id="confirmPay">Potvrdi</button><button id="closePay">Zatvori</button></div></div>
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const q=s=>document.querySelector(s), qa=s=>[...document.querySelectorAll(s)];
 const subdomain = new URLSearchParams(location.search).get('client') || sessionStorage.getItem('subdomain') || 'demo';
 const token = sessionStorage.getItem('token');
-const waiterName = sessionStorage.getItem('waiterName') || 'Pa kamarier';
-q('#waiter').textContent = `Kamarieri: ${waiterName}`;
+const waiterName = sessionStorage.getItem('waiterName') || 'Bez konobara';
+q('#waiter').textContent = `Konobar: ${waiterName}`;
 const headers = { 'Content-Type':'application/json', Authorization:`Bearer ${token}`, 'x-subdomain':subdomain };
 let categories=[], products=[], tables=[], selectedCategory=0, selectedTable=null, order=null;
 const ns = io(`/${subdomain}`); ns.on('table:update',()=>loadTables()); ns.on('order:update',()=>selectedTable&&loadOrderForTable(selectedTable.id));
@@ -59,11 +59,11 @@ const ns = io(`/${subdomain}`); ns.on('table:update',()=>loadTables()); ns.on('o
 async function api(path, opts={}){
   const allowed = ['/api/menu/','/api/tables','/api/orders','/api/payments','/api/print'];
   if (!path.startsWith('/api/') || path.includes('..') || !allowed.some(prefix => path.startsWith(prefix))) {
-    throw new Error('Path i pavlefshëm');
+    throw new Error('Nevažeća putanja');
   }
   const r=await fetch(path + (path.includes('?')?'&':'?') + 'client='+encodeURIComponent(subdomain), {...opts, headers:{...headers,...(opts.headers||{})}});
   const j=await r.json();
-  if(!r.ok) throw new Error(j.error||'Gabim');
+  if(!r.ok) throw new Error(j.error||'Greška');
   return j;
 }
 async function load(){ [categories,products,tables]=await Promise.all([api('/api/menu/categories'),api('/api/menu/products'),api('/api/tables')]); renderCategories(); renderProducts(); renderTables(); }
@@ -82,32 +82,32 @@ function renderTables(){
 }
 q('#floor').ondragover=e=>e.preventDefault();
 q('#floor').ondrop=async e=>{ e.preventDefault(); const id=e.dataTransfer.getData('id'); const rect=q('#floor').getBoundingClientRect(); const x=Math.max(0,Math.round(e.clientX-rect.left-40)); const y=Math.max(0,Math.round(e.clientY-rect.top-40)); await api(`/api/tables/${id}/position`,{method:'PUT',body:JSON.stringify({pos_x:x,pos_y:y})}); await loadTables(); };
-function renderCategories(){ const c=q('#categoryTabs'); c.innerHTML='<button onclick="setCategory(0)">Të gjitha</button>'; categories.forEach(cat=>{ const b=document.createElement('button'); b.textContent=`${cat.icon||'🍽️'} ${cat.name}`; b.onclick=()=>setCategory(cat.id); c.appendChild(b); }); }
+function renderCategories(){ const c=q('#categoryTabs'); c.innerHTML='<button onclick="setCategory(0)">Sve</button>'; categories.forEach(cat=>{ const b=document.createElement('button'); b.textContent=`${cat.icon||'🍽️'} ${cat.name}`; b.onclick=()=>setCategory(cat.id); c.appendChild(b); }); }
 function setCategory(id){ selectedCategory=id; renderProducts(); }
 window.setCategory=setCategory;
 function renderProducts(){ const grid=q('#productGrid'); grid.innerHTML=''; products.filter(p=>!selectedCategory||p.category_id===selectedCategory).forEach(p=>{ const b=document.createElement('button'); b.className='product'; b.innerHTML=`<strong>${p.name}</strong><br>${Number(p.price).toFixed(2)}€`; b.onclick=()=>addItem(p.id); grid.appendChild(b); }); }
 async function loadTables(){ tables = await api('/api/tables'); renderTables(); }
-async function selectTable(t){ selectedTable=t; await loadOrderForTable(t.id); q('#orderTitle').textContent=`Porosia - ${t.name}`; }
+async function selectTable(t){ selectedTable=t; await loadOrderForTable(t.id); q('#orderTitle').textContent=`Porudžbina - ${t.name}`; }
 async function loadOrderForTable(tableId){
   const open=await api('/api/orders');
   order = open.find(o=>o.table_id===tableId);
   if(!order) order = await api('/api/orders',{method:'POST',body:JSON.stringify({table_id:tableId,waiter_name:waiterName})});
   const full = await api('/api/orders/'+order.id); order.items = full.items || []; renderOrder();
 }
-async function addItem(productId){ if(!order){ alert('Zgjidh tavolinën'); return; } await api(`/api/orders/${order.id}/items`,{method:'POST',body:JSON.stringify({product_id:productId,qty:1})}); await loadOrderForTable(selectedTable.id); }
+async function addItem(productId){ if(!order){ alert('Izaberite sto'); return; } await api(`/api/orders/${order.id}/items`,{method:'POST',body:JSON.stringify({product_id:productId,qty:1})}); await loadOrderForTable(selectedTable.id); }
 async function removeOne(itemId){ await api(`/api/orders/${order.id}/items/${itemId}`,{method:'DELETE'}); await loadOrderForTable(selectedTable.id); }
-function renderOrder(){ const box=q('#orderItems'); box.innerHTML=''; let total=0; (order.items||[]).forEach(i=>{ total += Number(i.price)*Number(i.qty); const row=document.createElement('div'); row.className='order-item'; row.innerHTML=`<span>${i.qty}x ${i.product_name}</span><span class="qty"><button>-</button></span>`; row.querySelector('button').onclick=()=>removeOne(i.id); row.oncontextmenu=(e)=>{e.preventDefault(); const note=prompt('Shënim:',i.note||''); if(note!==null){ api(`/api/orders/${order.id}/items`,{method:'POST',body:JSON.stringify({product_id:i.product_id,qty:1,note})}).then(()=>loadOrderForTable(selectedTable.id)); }}; box.appendChild(row); });
-  q('#total').textContent=`Total: ${total.toFixed(2)}€`; q('#payTotal').textContent=q('#total').textContent;
+function renderOrder(){ const box=q('#orderItems'); box.innerHTML=''; let total=0; (order.items||[]).forEach(i=>{ total += Number(i.price)*Number(i.qty); const row=document.createElement('div'); row.className='order-item'; row.innerHTML=`<span>${i.qty}x ${i.product_name}</span><span class="qty"><button>-</button></span>`; row.querySelector('button').onclick=()=>removeOne(i.id); row.oncontextmenu=(e)=>{e.preventDefault(); const note=prompt('Napomena:',i.note||''); if(note!==null){ api(`/api/orders/${order.id}/items`,{method:'POST',body:JSON.stringify({product_id:i.product_id,qty:1,note})}).then(()=>loadOrderForTable(selectedTable.id)); }}; box.appendChild(row); });
+  q('#total').textContent=`Ukupno: ${total.toFixed(2)}€`; q('#payTotal').textContent=q('#total').textContent;
 }
-q('#sendKitchen').onclick=async()=>{ if(!order) return; await api(`/api/orders/${order.id}/send`,{method:'PUT'}); await api('/api/print/kitchen',{method:'POST',body:JSON.stringify({order_id:order.id})}); alert('U dërgua në kuzhinë'); };
+q('#sendKitchen').onclick=async()=>{ if(!order) return; await api(`/api/orders/${order.id}/send`,{method:'PUT'}); await api('/api/print/kitchen',{method:'POST',body:JSON.stringify({order_id:order.id})}); alert('Poslato u kuhinju'); };
 function openPay(){ q('#payModal').classList.add('show'); }
 q('#payBtn').onclick=openPay; q('#openPay').onclick=openPay; q('#closePay').onclick=()=>q('#payModal').classList.remove('show');
 q('#cash').oninput=()=>{ const total=parseFloat(q('#total').textContent.replace(/[^\d.]/g,''))||0; const cash=parseFloat(q('#cash').value)||0; q('#change').textContent='Kusuri: '+(cash-total).toFixed(2)+'€'; };
-q('#confirmPay').onclick=async()=>{ if(!order) return; const cash=parseFloat(q('#cash').value||'0'); const pay=await api('/api/payments',{method:'POST',body:JSON.stringify({order_id:order.id,cash_given:cash})}); await api('/api/print/receipt',{method:'POST',body:JSON.stringify({order_id:order.id,cash_given:pay.cash_given,change_due:pay.change_due})}); q('#payModal').classList.remove('show'); alert('Pagesa u krye'); order=null; await loadTables(); q('#orderItems').innerHTML=''; q('#total').textContent='Total: 0.00€'; };
+q('#confirmPay').onclick=async()=>{ if(!order) return; const cash=parseFloat(q('#cash').value||'0'); const pay=await api('/api/payments',{method:'POST',body:JSON.stringify({order_id:order.id,cash_given:cash})}); await api('/api/print/receipt',{method:'POST',body:JSON.stringify({order_id:order.id,cash_given:pay.cash_given,change_due:pay.change_due})}); q('#payModal').classList.remove('show'); alert('Naplata je završena'); order=null; await loadTables(); q('#orderItems').innerHTML=''; q('#total').textContent='Ukupno: 0.00€'; };
 q('#toggleFloor').onclick=()=>{ const f=q('#floor'); const l=q('#tableList'); const on=f.style.display==='none'; f.style.display=on?'block':'none'; l.style.display=on?'none':'grid'; };
 qa('.tabs button[data-tab]').forEach(b=>b.onclick=()=>{ qa('.left,.center,.right').forEach(x=>x.classList.remove('active')); q('.'+b.dataset.tab).classList.add('active'); });
 if(!token) location.href='/index.html';
-if (sessionStorage.getItem('language') === 'sr') location.replace('/pos-sr.html' + location.search);
+if ((sessionStorage.getItem('language') || 'sq') !== 'sr') location.replace('/pos.html' + location.search);
 load();
 </script>
   <script src="/pwa.js" defer></script>

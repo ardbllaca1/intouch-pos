@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="sq">
+<html lang="sr-Latn">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>InTouch — Hyrje</title>
+<title>InTouch — Prijava</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{min-height:100vh;display:flex;align-items:center;justify-content:center;
@@ -42,18 +42,17 @@
 <div class="card">
   <div class="logo">
     <h1>InTouch</h1>
-    <p>Dashboard</p>
   </div>
   <div class="error" id="err"></div>
   <div class="field">
-    <label>Përdoruesi</label>
-    <input id="username" type="text" placeholder="username" autocomplete="username"/>
+    <label>Korisničko ime</label>
+    <input id="username" type="text" placeholder="Korisničko ime" autocomplete="username"/>
   </div>
   <div class="field">
-    <label>Fjalëkalimi</label>
+    <label>Lozinka</label>
     <input id="password" type="password" placeholder="••••••••" autocomplete="current-password"/>
   </div>
-  <button id="btn" type="button">Hyr</button>
+  <button id="btn" type="button">Prijava</button>
 </div>
 
 <script>
@@ -111,11 +110,11 @@
     const btn = document.getElementById('btn');
 
     document.getElementById('err').style.display = 'none';
-    if (!username || !password) { showError('Plotëso të gjitha fushat.'); return; }
+    if (!username || !password) { showError('Popunite sva polja.'); return; }
 
     isLoggingIn = true;
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>Duke u kyçur...';
+    btn.innerHTML = '<span class="spinner"></span>Prijavljivanje...';
 
     try {
       // Forward ?client= so getSubdomain() on the server picks it up
@@ -126,7 +125,7 @@
         body: JSON.stringify({ username, password })
       });
       const data = await res.json();
-      if (!res.ok) { showError(data.error || 'Gabim gjatë hyrjes.'); return; }
+      if (!res.ok) { showError(data.error || 'Greška pri prijavljivanju.'); return; }
 
       sessionStorage.setItem('token', data.token);
       sessionStorage.setItem('restaurantName', data.restaurantName || '');
@@ -137,11 +136,11 @@
       // Keep ?client= on the dashboard too
       location.href = dashboardPath(data.language) + (activeClient ? '?client=' + encodeURIComponent(activeClient) : '');
     } catch {
-      showError('Nuk mund të lidhet me serverin.');
+      showError('Nije moguće povezati se sa serverom.');
     } finally {
       isLoggingIn = false;
       btn.disabled = false;
-      btn.textContent = 'Hyr';
+      btn.textContent = 'Prijava';
     }
   }
 

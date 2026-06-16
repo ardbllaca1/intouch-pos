@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Produktet e Shitura</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --bg:#0a0a0f; --surface:#111118; --surface2:#1a1a24; --border:#2a2a3a;
+      --accent:#6366f1; --accent2:#8b5cf6; --green:#10b981; --red:#ef4444;
+      --yellow:#f59e0b; --text:#f1f5f9; --muted:#64748b; --radius:14px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif; min-height:100vh; }
+    .topbar {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:0 max(16px, env(safe-area-inset-left)); padding-right:max(16px, env(safe-area-inset-right));
+      height:56px; background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; backdrop-filter: blur(12px);
+    }
+    .topbar-left { display:flex; align-items:center; gap:10px; min-width:0; }
+    .logo {
+      width:30px; height:30px; border-radius:8px; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+    }
+    .topbar-titles h1 { font-size:15px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .topbar-date { font-size:11px; color:var(--muted); }
+    .btn {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+      padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; min-height: 36px;
+    }
+    .btn:hover { background: var(--border); }
+    .page { max-width: 1200px; margin: 0 auto; padding: 16px; }
+    .card { background: var(--surface); border:1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+    .title { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
+    .table-wrap { border: 1px solid var(--border); border-radius: 10px; overflow: auto; max-height: calc(100vh - 220px); }
+    table { width: 100%; border-collapse: collapse; min-width: 650px; font-size: 13px; }
+    thead th {
+      position: sticky; top: 0; z-index: 2;
+      background: var(--surface);
+      color: var(--muted);
+      text-align: left;
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody tr { border-bottom: 1px solid rgba(42,42,58,0.5); }
+    tbody tr:hover { background: var(--surface2); }
+    tbody td { padding: 10px 12px; }
+    .val { color: var(--green); font-weight: 700; }
+    .actions { margin-top: 12px; display:flex; justify-content:flex-end; }
+    .empty { text-align:center; color:var(--muted); padding:24px; }
+    @media (min-width: 600px) {
+      .topbar { height: 60px; padding: 0 24px; }
+      .page { padding: 24px; }
+    }
+    @media (min-width: 900px) {
+      .topbar { height: 64px; padding: 0 32px; }
+      .topbar-titles h1 { font-size: 16px; }
+      .page { padding: 32px; }
+    }
+  </style>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#111118">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml"></head>
+<body>
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">IT</div>
+      <div class="topbar-titles">
+        <h1 id="restaurantName">InTouch</h1>
+        <div class="topbar-date">Produktet e Shitura</div>
+      </div>
+    </div>
+    <button id="btn-back-top" class="btn">← Kthehu</button>
+  </div>
+
+  <main class="page">
+    <section class="card">
+      <h2 class="title">Produktet e Shitura</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>produkti</th>
+              <th>sasia</th>
+              <th>qmimi</th>
+              <th>vlera</th>
+            </tr>
+          </thead>
+          <tbody id="productsBody">
+            <tr><td class="empty" colspan="4">Duke ngarkuar...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="actions">
+        <button id="btn-back-bottom" class="btn">← Kthehu</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const token = sessionStorage.getItem('token');
+    if (!token) { window.location.href = '/index.html'; throw new Error('No token'); }
+    if (sessionStorage.getItem('language') === 'sr') {
+      window.location.replace('/products-sr.html' + window.location.search);
+      throw new Error('switching page language');
+    }
+
+    function hostClient() {
+      const rootDomain = 'intouch-data.com';
+      const hostname = window.location.hostname.toLowerCase();
+      if (hostname.endsWith('.' + rootDomain) && hostname !== 'www.' + rootDomain) {
+        return hostname.slice(0, -rootDomain.length - 1).split('.')[0];
+      }
+      return '';
+    }
+
+    const clientParam = hostClient() || new URLSearchParams(window.location.search).get('client') || sessionStorage.getItem('client') || '';
+    const restaurantName = sessionStorage.getItem('restaurantName') || 'InTouch';
+    document.getElementById('restaurantName').textContent = restaurantName;
+    document.title = restaurantName + ' – Produktet e Shitura';
+
+    function fmt(n) {
+      return parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
+    }
+
+    function backToDashboard() {
+      window.location.href = '/dashboard.html' + (clientParam ? '?client=' + encodeURIComponent(clientParam) : '');
+    }
+
+    function renderProducts(products) {
+      const tbody = document.getElementById('productsBody');
+      if (!products.length) {
+        tbody.innerHTML = '<tr><td class="empty" colspan="4">Nuk ka produkte ende.</td></tr>';
+        return;
+      }
+      const sorted = [...products].sort((a, b) => (Number(b.sasia) || 0) - (Number(a.sasia) || 0));
+      tbody.innerHTML = sorted.map(p => `
+        <tr>
+          <td>${p.produkti || ''}</td>
+          <td>${p.sasia ?? ''}</td>
+          <td>${fmt(p.qmimi)}</td>
+          <td class="val">${fmt(p.vlera)}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function fetchData() {
+      try {
+        const res = await fetch('/api/sales/today?client=' + encodeURIComponent(clientParam), {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        if (res.status === 401) { sessionStorage.clear(); window.location.href = '/index.html'; return; }
+        const data = await res.json();
+        renderProducts(Array.isArray(data.products) ? data.products : []);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    document.getElementById('btn-back-top').addEventListener('click', backToDashboard);
+    document.getElementById('btn-back-bottom').addEventListener('click', backToDashboard);
+    fetchData();
+    setInterval(fetchData, 30000);
+  </script>
+  <script src="/pwa.js" defer></script>
+</body>
+</html>

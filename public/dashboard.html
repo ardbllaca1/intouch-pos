@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --bg:       #0a0a0f;
+      --surface:  #111118;
+      --surface2: #1a1a24;
+      --border:   #2a2a3a;
+      --accent:   #6366f1;
+      --accent2:  #8b5cf6;
+      --green:    #10b981;
+      --red:      #ef4444;
+      --yellow:   #f59e0b;
+      --text:     #f1f5f9;
+      --muted:    #64748b;
+      --glow:     0 0 0 1px var(--border), 0 4px 24px rgba(0,0,0,0.4);
+      --radius:   14px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 max(16px, env(safe-area-inset-left));
+      padding-right: max(16px, env(safe-area-inset-right));
+      height: 56px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+    .topbar-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .logo {
+      width: 30px; height: 30px; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 12px;
+    }
+    .topbar-titles { min-width: 0; }
+    .topbar-titles h1 {
+      font-size: 15px; font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .topbar-date { font-size: 11px; color: var(--muted); }
+    .topbar-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .badge-live {
+      display: flex; align-items: center; gap: 5px;
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.3);
+      color: var(--green);
+      padding: 4px 8px; border-radius: 20px;
+      font-size: 11px; font-weight: 500;
+    }
+    .badge-live .dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--green); flex-shrink: 0;
+      animation: blink 2s infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .btn {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); padding: 7px 12px; border-radius: 8px;
+      cursor: pointer; font-size: 13px; transition: all 0.2s;
+      min-height: 36px; white-space: nowrap;
+    }
+    .btn:hover   { background: var(--border); }
+    .btn:active  { transform: scale(0.96); }
+    .btn-logout  { color: var(--muted); }
+    .btn-logout:hover { color: var(--red); border-color: rgba(239,68,68,0.4); }
+
+    /* ── UPDATE BAR ── */
+    .update-bar {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 5px 16px; font-size: 11px; color: var(--muted); text-align: center;
+    }
+
+    /* ── PAGE LAYOUT ── */
+    .page {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0;
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 20px 16px max(20px, env(safe-area-inset-bottom));
+    }
+
+    /* ── SECTION LABEL ── */
+    .section-label {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--muted); margin: 20px 0 10px;
+    }
+    .section-label:first-child { margin-top: 0; }
+
+    /* ── KPI GRID ── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px;
+      box-shadow: var(--glow); transition: transform 0.15s;
+      position: relative; overflow: hidden;
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .stat-card:hover::before { opacity: 1; }
+    .stat-card:active { transform: scale(0.98); }
+    .stat-icon {
+      width: 34px; height: 34px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; margin-bottom: 10px;
+    }
+    .si-green  { background: rgba(16,185,129,0.12); }
+    .si-accent { background: rgba(99,102,241,0.12); }
+    .si-yellow { background: rgba(245,158,11,0.12); }
+    .si-purple { background: rgba(139,92,246,0.12); }
+    .stat-label { font-size: 11px; color: var(--muted); font-weight: 500; margin-bottom: 4px; }
+    .stat-value { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+    .sv-green  { color: var(--green); }
+    .sv-accent { color: var(--accent); }
+    .stat-sub  { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+    /* ── NAV CARDS ── */
+    .nav-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .nav-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden; cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s; text-decoration: none; display: block;
+    }
+    .nav-card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.4); }
+    .nav-card:active { transform: scale(0.97); }
+    .nav-card-bar { height: 3px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+    .nav-card-body { padding: 14px 12px; color: var(--text); font-size: 13px; font-weight: 500; }
+
+    /* ── GENERIC CARD ── */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px; box-shadow: var(--glow);
+    }
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
+    }
+    .card-title { font-size: 13px; font-weight: 600; }
+    .card-badge {
+      font-size: 10px; padding: 2px 7px; border-radius: 20px;
+      background: var(--surface2); color: var(--muted); border: 1px solid var(--border);
+    }
+
+    /* ── WAITER ── */
+    .waiter-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .waiter-row:last-child { margin-bottom: 0; }
+    .waiter-avatar {
+      width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700;
+    }
+    .waiter-info { flex: 1; min-width: 0; }
+    .waiter-name { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .waiter-bar-wrap { height: 3px; background: var(--surface2); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+    .waiter-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; transition: width 0.7s cubic-bezier(.4,0,.2,1); }
+    .waiter-total { font-size: 12px; font-weight: 700; flex-shrink: 0; }
+
+    /* ── DEPARTMENT ── */
+    .dept-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+    .dept-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px; text-align: center;
+    }
+    .dept-icon { font-size: 24px; margin-bottom: 6px; }
+    .dept-name { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+    .dept-val  { font-size: 18px; font-weight: 700; }
+
+    /* ── CHARTS ── */
+    .chart-wrap { position: relative; height: 180px; margin-top: 14px; }
+
+    /* ── TABLES GRID ── */
+    .tables-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(48px,1fr)); gap: 7px; }
+    .table-cell {
+      aspect-ratio: 1; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 600; border: 1px solid var(--border);
+    }
+    .table-cell.active   { background: rgba(99,102,241,0.15); border-color: var(--accent); color: var(--accent); }
+    .table-cell.inactive { background: var(--surface2); color: var(--muted); }
+
+    /* ── ORDERS TABLE ── */
+    .orders-wrap {
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+      max-height: 340px; overflow-y: auto;
+    }
+    .orders-wrap::-webkit-scrollbar { height: 3px; width: 3px; }
+    .orders-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 340px; }
+    thead th {
+      text-align: left; padding: 7px 10px; color: var(--muted); font-weight: 600;
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface);
+    }
+    tbody tr { border-bottom: 1px solid rgba(42,42,58,0.5); transition: background 0.15s; }
+    tbody tr:hover { background: var(--surface2); }
+    tbody td { padding: 9px 10px; }
+    .pill { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+    .pill-blue  { background: rgba(99,102,241,0.15); color: var(--accent); }
+    .pill-green { background: rgba(16,185,129,0.15); color: var(--green); }
+
+    /* ── PRODUCTS ── */
+    .product-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 0; border-bottom: 1px solid rgba(42,42,58,0.5);
+    }
+    .product-row:last-child { border-bottom: none; }
+    .product-rank { width: 20px; font-size: 11px; color: var(--muted); font-weight: 700; text-align: center; flex-shrink: 0; }
+    .product-name { flex: 1; font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .product-qty  { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+    .product-val  { font-size: 12px; font-weight: 700; flex-shrink: 0; min-width: 60px; text-align: right; color: var(--green); }
+
+    /* ── LOADING ── */
+    .loading { display: flex; align-items: center; justify-content: center; height: 80px; color: var(--muted); font-size: 13px; gap: 8px; }
+    .spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ════════════════════════════════════════
+       RESPONSIVE BREAKPOINTS
+       ════════════════════════════════════════ */
+
+    /* ── TABLET (600px+) ── */
+    @media (min-width: 600px) {
+      .topbar { height: 60px; padding: 0 24px; }
+      .topbar-titles h1 { font-size: 16px; }
+      .page { padding: 24px; gap: 0; }
+      .kpi-grid { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+      .nav-grid { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+      .stat-value { font-size: 26px; }
+    }
+
+    /* ── DESKTOP (900px+) ── */
+    @media (min-width: 900px) {
+      .topbar { height: 64px; padding: 0 32px; }
+      .page { padding: 32px; }
+
+      .desktop-layout {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 20px;
+        align-items: start;
+      }
+
+      .right-col { display: flex; flex-direction: column; gap: 20px; }
+      .row-2col  { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+      .row-3col  { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+
+      .stat-value { font-size: 28px; }
+      .card-title { font-size: 14px; }
+      .chart-wrap { height: 200px; }
+    }
+
+    /* ── WIDE (1200px+) ── */
+    @media (min-width: 1200px) {
+      .desktop-layout { grid-template-columns: 320px 1fr; gap: 24px; }
+      .row-3col { grid-template-columns: 2fr 1fr; }
+      .kpi-grid { gap: 16px; }
+    }
+  </style>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#111118">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml"></head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo">IT</div>
+    <div class="topbar-titles">
+      <h1 id="restaurantName">...</h1>
+      <div class="topbar-date" id="dateDisplay"></div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="badge-live"><div class="dot"></div> Live</div>
+    <span id="last-updated" style="font-size:11px;color:var(--muted);display:none"></span>
+    <button id="btn-refresh" class="btn">↻ <span class="hide-mobile">Rifresko</span></button>
+    <button id="btn-logout" class="btn btn-logout">Dil</button>
+  </div>
+</div>
+
+<!-- UPDATE BAR (mobile only) -->
+<div class="update-bar" id="update-bar">Duke ngarkuar...</div>
+
+<!-- PAGE -->
+<div class="page">
+
+  <!-- KPIs always full width -->
+  <div class="section-label">Pasqyra e Ditës</div>
+  <div class="kpi-grid">
+    <div class="stat-card">
+      <div class="stat-icon si-green">💰</div>
+      <div class="stat-label">Shitjet Sot</div>
+      <div class="stat-value sv-green" id="kpi-total">—</div>
+      <!-- <div class="stat-sub">Të gjitha departamentet</div> -->
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon si-accent">🧾</div>
+      <div class="stat-label">Porositë sot</div>
+      <div class="stat-value sv-accent" id="kpi-orders">—</div>
+      <!-- <div class="stat-sub">Sot</div> -->
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon si-yellow">🍽️</div>
+      <div class="stat-label">Tavolinat</div>
+      <div class="stat-value" id="kpi-tables">—</div>
+      <div class="stat-sub">Aktive</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon si-purple">👨‍🍳</div>
+      <div class="stat-label">Kamarierët</div>
+      <div class="stat-value" id="kpi-waiters">—</div>
+      <div class="stat-sub">Aktiv sot</div>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <div class="section-label">Navigimi</div>
+  <div class="nav-grid">
+    <a class="nav-card" href="/tables.html">
+      <div class="nav-card-bar"></div>
+      <div class="nav-card-body">🪑 Tavolinat</div>
+    </a>
+    <a class="nav-card" href="/details.html">
+      <div class="nav-card-bar"></div>
+      <div class="nav-card-body">📊 Detajet</div>
+    </a>
+    <a class="nav-card" href="/orders.html">
+      <div class="nav-card-bar"></div>
+      <div class="nav-card-body">📋 Porositë</div>
+    </a>
+    <a class="nav-card" href="/products.html">
+      <div class="nav-card-bar"></div>
+      <div class="nav-card-body">🏆 Produktet</div>
+    </a>
+  </div>
+
+  <div class="section-label">Detajet</div>
+
+  <!-- MOBILE STACK -->
+  <div id="mobile-stack">
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Sipas Kamarierit</span>
+        <span class="card-badge" id="waiter-count-m">—</span>
+      </div>
+      <div id="waiter-list-m"><div class="loading"><div class="spinner"></div> Duke ngarkuar...</div></div>
+    </div>
+
+    <div class="card" style="margin-top:10px">
+      <div class="card-header">
+        <span class="card-title">Sipas Departamentit</span>
+      </div>
+      <div class="dept-row" id="dept-list-m"><div class="loading"><div class="spinner"></div></div></div>
+      <div class="chart-wrap"><canvas id="dept-chart-m"></canvas></div>
+    </div>
+
+    <div class="card" style="margin-top:10px">
+      <div class="card-header">
+        <span class="card-title">Porositë sipas Orës</span>
+        <span class="card-badge">Sot</span>
+      </div>
+      <div class="chart-wrap"><canvas id="hourly-chart-m"></canvas></div>
+    </div>
+
+    <div class="card" style="margin-top:10px">
+      <div class="card-header">
+        <span class="card-title">Tavolinat</span>
+        <span class="card-badge" id="tables-badge-m">—</span>
+      </div>
+      <div class="tables-grid" id="tables-grid-m"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+
+    <div class="card" style="margin-top:10px">
+      <div class="card-header">
+        <span class="card-title">Faturat e Fundit</span>
+        <span class="card-badge" id="orders-count-m">0</span>
+      </div>
+      <div class="orders-wrap">
+        <table>
+          <thead><tr><th>Produkti</th><th>Sas</th><th>Vlera</th><th>Tav</th><th>Ora</th><th>Kam</th></tr></thead>
+          <tbody id="orders-body-m"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Duke ngarkuar...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:10px">
+      <div class="card-header">
+        <span class="card-title">Produktet Kryesore</span>
+        <span class="card-badge" id="products-count-m">0</span>
+      </div>
+      <div id="products-list-m"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+
+  </div><!-- /mobile-stack -->
+
+  <!-- DESKTOP LAYOUT -->
+  <div class="desktop-layout" id="desktop-layout" style="display:none">
+
+    <!-- LEFT SIDEBAR -->
+    <div class="left-col">
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Sipas Kamarierit</span>
+          <span class="card-badge" id="waiter-count-d">—</span>
+        </div>
+        <div id="waiter-list-d"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-header">
+          <span class="card-title">Departamentet</span>
+        </div>
+        <div class="dept-row" id="dept-list-d"><div class="loading"><div class="spinner"></div></div></div>
+        <div class="chart-wrap"><canvas id="dept-chart-d"></canvas></div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-header">
+          <span class="card-title">Tavolinat</span>
+          <span class="card-badge" id="tables-badge-d">—</span>
+        </div>
+        <div class="tables-grid" id="tables-grid-d"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+
+    </div><!-- /left-col -->
+
+    <!-- RIGHT CONTENT -->
+    <div class="right-col">
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Porositë sipas Orës</span>
+          <span class="card-badge">Sot</span>
+        </div>
+        <div class="chart-wrap" style="height:220px"><canvas id="hourly-chart-d"></canvas></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Faturat e Fundit</span>
+          <span class="card-badge" id="orders-count-d">0</span>
+        </div>
+        <div class="orders-wrap">
+          <table>
+            <thead><tr><th>Produkti</th><th>Sasia</th><th>Vlera</th><th>Tavolina</th><th>Ora</th><th>Kamarieri</th></tr></thead>
+            <tbody id="orders-body-d"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Duke ngarkuar...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Produktet Kryesore</span>
+          <span class="card-badge" id="products-count-d">0</span>
+        </div>
+        <div id="products-list-d"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+
+    </div><!-- /right-col -->
+
+  </div><!-- /desktop-layout -->
+
+</div><!-- /page -->
+
+<script>
+  // ── Auth ──
+  const token = sessionStorage.getItem('token');
+  if (!token) { window.location.href = '/index.html'; throw new Error('not logged in'); }
+  if (sessionStorage.getItem('language') === 'sr') {
+    window.location.replace('/dashboard-sr.html' + window.location.search);
+    throw new Error('switching dashboard language');
+  }
+
+  // Pick up client param from URL or sessionStorage (needed on localhost)
+  function hostClient() {
+    const rootDomain = 'intouch-data.com';
+    const hostname = window.location.hostname.toLowerCase();
+    if (hostname.endsWith('.' + rootDomain) && hostname !== 'www.' + rootDomain) {
+      return hostname.slice(0, -rootDomain.length - 1).split('.')[0];
+    }
+    return '';
+  }
+
+  const clientParam = new URLSearchParams(window.location.search).get('client')
+                   || '';
+  const activeClient = hostClient()
+                   || clientParam
+                   || sessionStorage.getItem('client')
+                   || '';
+
+  function tokenClient(tokenValue) {
+    try {
+      return JSON.parse(atob(tokenValue.split('.')[1] || '')).subdomain || '';
+    } catch {
+      return '';
+    }
+  }
+
+  const storedClient = tokenClient(token) || sessionStorage.getItem('client') || '';
+  if (activeClient && storedClient && storedClient !== activeClient) {
+    sessionStorage.clear();
+    window.location.href = '/index.html' + (activeClient ? '?client=' + encodeURIComponent(activeClient) : '');
+    throw new Error('client mismatch');
+  }
+
+  // Preserve ?client= on all nav links
+  document.querySelectorAll('.nav-card').forEach(a => {
+    if (!activeClient) return;
+    const baseHref = a.getAttribute('href');
+    if (!baseHref) return;
+    const sep = baseHref.includes('?') ? '&' : '?';
+    a.href = baseHref + sep + 'client=' + encodeURIComponent(activeClient);
+  });
+
+  const restaurantName = sessionStorage.getItem('restaurantName') || 'InTouch';
+  document.getElementById('restaurantName').textContent = restaurantName;
+  document.title = restaurantName + ' – Dashboard';
+
+  function logout() { sessionStorage.clear(); window.location.href = '/index.html' + (activeClient ? '?client=' + activeClient : ''); }
+
+  // ── Detect layout ──
+  function isDesktop() { return window.innerWidth >= 900; }
+
+  function applyLayout() {
+    const d = isDesktop();
+    document.getElementById('mobile-stack').style.display   = d ? 'none'  : 'block';
+    document.getElementById('desktop-layout').style.display = d ? 'grid'  : 'none';
+    document.getElementById('update-bar').style.display     = d ? 'none'  : 'block';
+    document.getElementById('last-updated').style.display   = d ? 'inline': 'none';
+  }
+
+  window.addEventListener('resize', applyLayout);
+  applyLayout();
+
+  // ── Charts ──
+  let charts = {};
+
+  function fmt(n) {
+    return parseFloat(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'€';
+  }
+  function formatDate(d) { return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`; }
+
+  // ── Render helpers ──
+  function waiterHTML(waiters) {
+    if (!waiters.length) return '<div class="loading">Nuk ka të dhëna</div>';
+    const max = Math.max(...waiters.map(w=>w.total), 1);
+    return waiters.map(w=>`
+      <div class="waiter-row">
+        <div class="waiter-avatar">${w.name.charAt(0).toUpperCase()}</div>
+        <div class="waiter-info">
+          <div class="waiter-name">${w.name}</div>
+          <div class="waiter-bar-wrap"><div class="waiter-bar" style="width:${(w.total/max*100).toFixed(1)}%"></div></div>
+        </div>
+        <div class="waiter-total">${fmt(w.total)}</div>
+      </div>`).join('');
+  }
+
+  function deptHTML(depts) {
+    if (!depts.length) return '<div class="loading">Nuk ka të dhëna</div>';
+    const icons = {
+      'Banaku':'🍹',
+      'Kuzhina':'🍳',
+      'Pizza':'🍕',
+      'Sallatat':'🥗',
+      'Akulloret':'🍨',
+      'Tjera':'📦'
+    };
+    const colors = {
+      'Banaku':'var(--accent)',
+      'Kuzhina':'var(--green)',
+      'Pizza':'#ef4444',
+      'Sallatat':'#22c55e',
+      'Akulloret':'#ec4899',
+      'Tjera':'#f59e0b'
+    };
+    return depts.map(d=>`
+      <div class="dept-card">
+        <div class="dept-icon">${icons[d.name]||'📦'}</div>
+        <div class="dept-name">${d.name}</div>
+        <div class="dept-val" style="color:${colors[d.name]||'var(--text)'}">${fmt(d.total)}</div>
+      </div>`).join('');
+  }
+
+  function normalizeDepartments(depts) {
+    const names = ['Banaku', 'Kuzhina', 'Pizza', 'Sallatat', 'Akulloret', 'Tjera'];
+    const totals = new Map(
+      (depts || []).map(d => [d.name, Number(d.total) || 0])
+    );
+    return names
+      .map(name => ({ name, total: totals.get(name) || 0 }))
+      .filter(department => department.total > 0);
+  }
+
+  function deptChartOpts(depts, canvasId) {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return;
+    if (charts[canvasId]) charts[canvasId].destroy();
+    const chartColors = {
+      'Banaku':'#6366f1',
+      'Kuzhina':'#10b981',
+      'Pizza':'#ef4444',
+      'Sallatat':'#22c55e',
+      'Akulloret':'#ec4899',
+      'Tjera':'#f59e0b'
+    };
+    charts[canvasId] = new Chart(ctx.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: depts.map(d=>d.name),
+        datasets:[{ data: depts.map(d=>d.total), backgroundColor:depts.map(d=>chartColors[d.name]||'#64748b'), borderWidth:0, hoverOffset:4 }]
+      },
+      options: {
+        plugins:{ legend:{ labels:{ color:'#64748b', font:{size:11}, boxWidth:12 } } },
+        cutout:'68%', responsive:true, maintainAspectRatio:false
+      }
+    });
+  }
+
+  function hourlyChartOpts(hourly, canvasId) {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return;
+    if (charts[canvasId]) charts[canvasId].destroy();
+    charts[canvasId] = new Chart(ctx.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: hourly.map(h=>h.hour),
+        datasets:[{
+          label:'Porosi', data: hourly.map(h=>h.count),
+          backgroundColor:'rgba(99,102,241,0.5)', borderColor:'#6366f1',
+          borderWidth:1, borderRadius:4
+        }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{
+          x:{ ticks:{ color:'#64748b', font:{size:10}, maxRotation:45 }, grid:{ color:'rgba(42,42,58,0.5)' } },
+          y:{ ticks:{ color:'#64748b', font:{size:10} }, grid:{ color:'rgba(42,42,58,0.5)' } }
+        }
+      }
+    });
+  }
+
+  function tablesHTML(tables) {
+    if (!tables.length) return '<div class="loading">Nuk ka të dhëna</div>';
+    return sortTables(tables).map(t=>`<div class="table-cell ${t.active?'active':'inactive'}">${t.name}</div>`).join('');
+  }
+
+  function tableSortValue(name) {
+    const value = String(name || '').trim();
+    const number = parseInt(value, 10);
+    return Number.isNaN(number) ? null : number;
+  }
+
+  function sortTables(tables) {
+    return [...tables].sort((a, b) => {
+      const aNum = tableSortValue(a.name);
+      const bNum = tableSortValue(b.name);
+      if (aNum !== null && bNum !== null && aNum !== bNum) return aNum - bNum;
+      if (aNum !== null && bNum === null) return -1;
+      if (aNum === null && bNum !== null) return 1;
+      return String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric: true, sensitivity: 'base' });
+    });
+  }
+
+  function ordersRows(orders) {
+    if (!orders.length) return `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Nuk ka porosi ende.</td></tr>`;
+    return orders.map(o=>`
+      <tr>
+        <td>${o.produkti}</td>
+        <td><span class="pill pill-blue">${o.sasia}</span></td>
+        <td style="color:var(--green);font-weight:600">${fmt(o.vlera)}</td>
+        <td><span class="pill pill-green">T${o.tav}</span></td>
+        <td style="color:var(--muted)">${o.time||''}</td>
+        <td>${o.kam}</td>
+      </tr>`).join('');
+  }
+
+  function productsHTML(products) {
+    if (!products.length) return '<div class="loading">Nuk ka të dhëna</div>';
+    return products.slice(0,15).map((p,i)=>`
+      <div class="product-row">
+        <div class="product-rank">${i+1}</div>
+        <div class="product-name">${p.produkti}</div>
+        <div class="product-qty">${p.sasia}x</div>
+        <div class="product-val">${fmt(p.vlera)}</div>
+      </div>`).join('');
+  }
+
+  // ── Render all ──
+  function renderAll(data) {
+    const waiters  = data.byWaiter     || [];
+    const depts    = normalizeDepartments(data.byDepartment);
+    const hourly   = data.hourly       || [];
+    const tables   = data.tables       || [];
+    const orders   = data.recentOrders || [];
+    const allOrders = data.allOrders    || [];
+    const products = data.products     || [];
+    const suffix   = isDesktop() ? 'd' : 'm';
+
+    // KPIs
+    document.getElementById('kpi-total').textContent   = fmt(data.totalSales);
+    document.getElementById('kpi-orders').textContent  = allOrders.length;
+    document.getElementById('kpi-tables').textContent  = tables.filter(t=>t.active).length;
+    document.getElementById('kpi-waiters').textContent = waiters.length;
+
+    // Waiters
+    document.getElementById(`waiter-count-${suffix}`).textContent = waiters.length + ' kamarierë';
+    document.getElementById(`waiter-list-${suffix}`).innerHTML    = waiterHTML(waiters);
+
+    // Depts
+    document.getElementById(`dept-list-${suffix}`).innerHTML = deptHTML(depts);
+    deptChartOpts(depts, `dept-chart-${suffix}`);
+
+    // Hourly
+    hourlyChartOpts(hourly, `hourly-chart-${suffix}`);
+
+    // Tables
+    document.getElementById(`tables-badge-${suffix}`).textContent = tables.filter(t=>t.active).length + ' aktive / ' + tables.length + ' gjithsej';
+    document.getElementById(`tables-grid-${suffix}`).innerHTML    = tablesHTML(tables);
+
+    // Orders
+    document.getElementById(`orders-count-${suffix}`).textContent = orders.length;
+    document.getElementById(`orders-body-${suffix}`).innerHTML    = ordersRows(orders);
+
+    // Products
+    document.getElementById(`products-count-${suffix}`).textContent = products.length + ' produkte';
+    document.getElementById(`products-list-${suffix}`).innerHTML    = productsHTML(products);
+  }
+
+  // ── Fetch ──
+  async function fetchData() {
+    try {
+      const url = '/api/sales/today' + (activeClient ? '?client=' + encodeURIComponent(activeClient) : '');
+      const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+      if (res.status === 401) { sessionStorage.clear(); window.location.href = '/index.html'; return; }
+      const data = await res.json();
+
+      const date = data.date ? new Date(data.date) : new Date();
+      document.getElementById('dateDisplay').textContent = formatDate(date);
+
+      const now = new Date();
+      const ts = 'Përditësuar: ' + now.getHours() + ':' +
+        String(now.getMinutes()).padStart(2,'0') + ':' +
+        String(now.getSeconds()).padStart(2,'0');
+      document.getElementById('update-bar').textContent   = ts;
+      document.getElementById('last-updated').textContent = ts;
+
+      renderAll(data);
+    } catch(err) {
+      console.error(err);
+      const msg = '⚠ Gabim gjatë ngarkimit';
+      document.getElementById('update-bar').textContent   = msg;
+      document.getElementById('last-updated').textContent = msg;
+    }
+  }
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { applyLayout(); fetchData(); }, 250);
+  });
+
+  document.getElementById('btn-refresh').addEventListener('click', fetchData);
+  document.getElementById('btn-logout').addEventListener('click', logout);
+  fetchData();
+  setInterval(fetchData, 30000);
+</script>
+  <script src="/pwa.js" defer></script>
+</body>
+</html>

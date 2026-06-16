@@ -1,5 +1,4 @@
 require('dotenv').config();
-console.log('ADMIN_KEY loaded as:', process.env.ADMIN_KEY);
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -9,15 +8,13 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
-const { Server } = require('socket.io');
 const net = require('net');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: '*' }
-});
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
+const ROOT_DOMAIN = (process.env.ROOT_DOMAIN || 'intouch-data.com').toLowerCase();
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-in-production';
 const API_KEY = process.env.API_KEY || 'change-this-api-key';
 
@@ -32,6 +29,7 @@ db.exec(`
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     subdomain   TEXT    UNIQUE NOT NULL,
     name        TEXT    NOT NULL,
+    language    TEXT    NOT NULL DEFAULT 'sq',
     created_at  TEXT    DEFAULT (datetime('now'))
   );
 
@@ -98,6 +96,8 @@ db.exec(`
     tav        TEXT,
     time       TEXT,
     kam        TEXT,
+    is_active  INTEGER DEFAULT 0,
+    session_id TEXT,
     created_at TEXT DEFAULT (datetime('now'))
   );
 
@@ -111,87 +111,17 @@ db.exec(`
     vlera      REAL DEFAULT 0,
     UNIQUE(subdomain, date, produkti)
   );
-
-  CREATE TABLE IF NOT EXISTS menu_categories (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    subdomain  TEXT NOT NULL,
-    name       TEXT NOT NULL,
-    icon       TEXT DEFAULT '🍽️',
-    color      TEXT DEFAULT '#6366f1',
-    sort_order INTEGER DEFAULT 0
-  );
-
-  CREATE TABLE IF NOT EXISTS menu_products (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    subdomain   TEXT NOT NULL,
-    code        INTEGER,
-    name        TEXT NOT NULL,
-    price       REAL NOT NULL,
-    category_id INTEGER,
-    department  TEXT NOT NULL DEFAULT 'Banaku',
-    active      INTEGER DEFAULT 1,
-    sort_order  INTEGER DEFAULT 0
-  );
-
-  CREATE TABLE IF NOT EXISTS floor_tables (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    subdomain  TEXT NOT NULL,
-    name       TEXT NOT NULL,
-    pos_x      INTEGER DEFAULT 0,
-    pos_y      INTEGER DEFAULT 0,
-    width      INTEGER DEFAULT 80,
-    height     INTEGER DEFAULT 80,
-    shape      TEXT DEFAULT 'square',
-    status     TEXT DEFAULT 'free',
-    waiter_id  INTEGER,
-    opened_at  TEXT,
-    UNIQUE(subdomain, name)
-  );
-
-  CREATE TABLE IF NOT EXISTS live_orders (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    subdomain   TEXT NOT NULL,
-    table_id    INTEGER NOT NULL,
-    waiter_name TEXT NOT NULL,
-    status      TEXT DEFAULT 'open',
-    created_at  TEXT DEFAULT (datetime('now')),
-    closed_at   TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS live_order_items (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_id     INTEGER NOT NULL,
-    product_id   INTEGER NOT NULL,
-    product_name TEXT NOT NULL,
-    price        REAL NOT NULL,
-    qty          INTEGER DEFAULT 1,
-    note         TEXT,
-    sent_kitchen INTEGER DEFAULT 0,
-    sent_bar     INTEGER DEFAULT 0,
-    created_at   TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS live_payments (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    subdomain   TEXT NOT NULL,
-    order_id    INTEGER NOT NULL,
-    total       REAL NOT NULL,
-    cash_given  REAL NOT NULL,
-    change_due  REAL NOT NULL,
-    waiter_name TEXT,
-    closed_at   TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS waiters (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    subdomain TEXT NOT NULL,
-    name      TEXT NOT NULL,
-    pin       TEXT NOT NULL,
-    role      TEXT DEFAULT 'waiter',
-    active    INTEGER DEFAULT 1,
-    UNIQUE(subdomain, name)
-  );
 `);
+
+function ensureColumn(tableName, columnName, definition) {
+  const hasColumn = db.prepare(`PRAGMA table_info(${tableName})`).all().some(col => col.name === columnName);
+  if (!hasColumn) db.prepare(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`).run();
+}
+
+ensureColumn('orders', 'is_active', 'INTEGER DEFAULT 0');
+ensureColumn('orders', 'session_id', 'TEXT');
+ensureColumn('tables_status', 'opened_at', 'TEXT');
+ensureColumn('clients', 'language', "TEXT NOT NULL DEFAULT 'sq'");
 
 // ── Middleware ──────────────────────────────────────────────────
 app.use(helmet({
@@ -206,7 +136,6 @@ app.use(helmet({
 }));
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Helpers ─────────────────────────────────────────────────────
 function getSubdomain(req) {
@@ -214,11 +143,32 @@ function getSubdomain(req) {
   const hostname = host.split(':')[0].toLowerCase();
   const skipSubdomainExtraction = hostname === 'localhost' || net.isIP(hostname) !== 0;
   if (!skipSubdomainExtraction) {
-    const parts = hostname.split('.');
-    if (parts.length >= 3) return parts[0].toLowerCase();
+    if (hostname.endsWith(`.${ROOT_DOMAIN}`) && hostname !== `www.${ROOT_DOMAIN}`) {
+      return hostname.slice(0, -ROOT_DOMAIN.length - 1).split('.')[0];
+    }
+    if (hostname !== ROOT_DOMAIN && hostname !== `www.${ROOT_DOMAIN}`) {
+      const parts = hostname.split('.');
+      if (parts.length >= 3 && parts[0] !== 'www') return parts[0].toLowerCase();
+    }
   }
-  return req.query.client || req.headers['x-subdomain'] || null;
+  const requestedClient = req.query.client || req.headers['x-subdomain'];
+  if (requestedClient) return String(requestedClient).toLowerCase();
+  if (req.user && req.user.subdomain) return String(req.user.subdomain).toLowerCase();
+
+  const clients = db.prepare('SELECT subdomain FROM clients LIMIT 2').all();
+  return clients.length === 1 ? clients[0].subdomain : null;
 }
+
+app.get(['/', '/index.html', '/index-sr.html'], (req, res) => {
+  const subdomain = getSubdomain(req);
+  const client = subdomain
+    ? db.prepare('SELECT language FROM clients WHERE subdomain = ?').get(subdomain)
+    : null;
+  const loginPage = client && client.language === 'sr' ? 'index-sr.html' : 'index.html';
+  res.sendFile(path.join(__dirname, 'public', loginPage));
+});
+
+app.use(express.static(path.join(__dirname, 'public')));
 
 function todayDate() {
   return new Date().toISOString().split('T')[0];
@@ -231,6 +181,10 @@ function authMiddleware(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
+    const subdomain = getSubdomain(req);
+    if (subdomain && decoded.subdomain && subdomain !== decoded.subdomain) {
+      return res.status(401).json({ error: 'Token belongs to a different client' });
+    }
     next();
   } catch {
     return res.status(401).json({ error: 'Token invalid or expired' });
@@ -243,30 +197,35 @@ function apiKeyMiddleware(req, res, next) {
   next();
 }
 
-app.locals.authMiddleware = authMiddleware;
-app.locals.io = io;
-
-// ── Socket.io ───────────────────────────────────────────────────
-io.of(/^\/[a-z0-9-]+$/).on('connection', (socket) => {
-  socket.emit('connected', { ok: true });
-});
-
 // ── Auth routes ─────────────────────────────────────────────────
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   const subdomain = getSubdomain(req);
+  const client = subdomain
+    ? db.prepare('SELECT * FROM clients WHERE subdomain = ?').get(subdomain)
+    : null;
+  const isSerbian = client && client.language === 'sr';
   if (!username || !password) {
-    return res.status(400).json({ error: 'Username dhe fjalëkalimi janë të nevojshëm' });
+    return res.status(400).json({
+      error: isSerbian ? 'Korisničko ime i lozinka su obavezni' : 'Username dhe fjalëkalimi janë të nevojshëm'
+    });
+  }
+  if (!subdomain) {
+    return res.status(400).json({ error: 'Mungon klienti. Hap linkun me ?client=emri ose perdor subdomain-in.' });
   }
   const user = db.prepare(
     'SELECT * FROM users WHERE subdomain = ? AND username = ?'
   ).get(subdomain, username);
-  if (!user) return res.status(401).json({ error: 'Kredencialet janë të gabuara' });
+  if (!user) return res.status(401).json({ error: isSerbian ? 'Pogrešni podaci za prijavu' : 'Kredencialet janë të gabuara' });
   const valid = bcrypt.compareSync(password, user.password);
-  if (!valid) return res.status(401).json({ error: 'Kredencialet janë të gabuara' });
-  const client = db.prepare('SELECT * FROM clients WHERE subdomain = ?').get(subdomain);
+  if (!valid) return res.status(401).json({ error: isSerbian ? 'Pogrešni podaci za prijavu' : 'Kredencialet janë të gabuara' });
   const token = jwt.sign({ username, subdomain }, JWT_SECRET, { expiresIn: '12h' });
-  res.json({ token, restaurantName: client ? client.name : subdomain });
+  res.json({
+    token,
+    subdomain,
+    restaurantName: client ? client.name : subdomain,
+    language: client && client.language === 'sr' ? 'sr' : 'sq'
+  });
 });
 
 // ── Sales data route ────────────────────────────────────────────
@@ -291,17 +250,23 @@ app.get('/api/sales/today', authMiddleware, (req, res) => {
   ).all(subdomain, date);
 
   const tables = db.prepare(
-    'SELECT name, active FROM tables_status WHERE subdomain = ? AND date = ? ORDER BY name ASC'
+    `SELECT name, active, opened_at AS openedAt
+     FROM tables_status
+     WHERE subdomain = ? AND date = ?
+     ORDER BY
+       CASE WHEN name GLOB '[0-9]*' THEN 0 ELSE 1 END,
+       CAST(name AS INTEGER),
+       name ASC`
   ).all(subdomain, date);
 
   const recentOrders = db.prepare(`
-    SELECT produkti, sasia, vlera, tav, time, kam
+    SELECT produkti, sasia, vlera, tav, time, kam, is_active AS isActive, session_id AS sessionId
     FROM orders WHERE subdomain = ? AND date = ?
     ORDER BY created_at DESC LIMIT 20
   `).all(subdomain, date);
 
   const allOrders = db.prepare(`
-    SELECT produkti, sasia, vlera, tav, time, kam
+    SELECT produkti, sasia, vlera, tav, time, kam, is_active AS isActive, session_id AS sessionId
     FROM orders WHERE subdomain = ? AND date = ?
     ORDER BY created_at DESC
   `).all(subdomain, date);
@@ -362,18 +327,19 @@ app.post('/api/sales', apiKeyMiddleware, (req, res) => {
 
       if (Array.isArray(payload.tables)) {
         db.prepare('DELETE FROM tables_status WHERE subdomain = ? AND date = ?').run(subdomain, date);
-        const insT = db.prepare('INSERT INTO tables_status (subdomain, date, name, active) VALUES (?, ?, ?, ?)');
-        for (const t of payload.tables) insT.run(subdomain, date, t.name, t.active ? 1 : 0);
+        const insT = db.prepare('INSERT INTO tables_status (subdomain, date, name, active, opened_at) VALUES (?, ?, ?, ?, ?)');
+        for (const t of payload.tables) insT.run(subdomain, date, t.name, t.active ? 1 : 0, t.openedAt || t.opened_at || null);
       }
 
       if (Array.isArray(payload.allOrders)) {
         db.prepare('DELETE FROM orders WHERE subdomain = ? AND date = ?').run(subdomain, date);
         const insO = db.prepare(`
-          INSERT INTO orders (subdomain, date, produkti, sasia, vlera, tav, time, kam)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO orders (subdomain, date, produkti, sasia, vlera, tav, time, kam, is_active, session_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         for (const o of payload.allOrders) {
-          insO.run(subdomain, date, o.produkti, o.sasia, o.vlera, o.tav, o.time, o.kam);
+          const isActive = o.isActive || o.active || o.current || o.open ? 1 : 0;
+          insO.run(subdomain, date, o.produkti, o.sasia, o.vlera, o.tav, o.time, o.kam, isActive, o.sessionId || o.session_id || null);
         }
       }
 
@@ -398,25 +364,20 @@ app.post('/api/sales', apiKeyMiddleware, (req, res) => {
   }
 });
 
-// ── POS routes ──────────────────────────────────────────────────
-require('./src/routes/menu')(app, db, getSubdomain);
-require('./src/routes/tables')(app, db, getSubdomain, io);
-require('./src/routes/orders')(app, db, getSubdomain, io);
-require('./src/routes/payments')(app, db, getSubdomain, io);
-require('./src/routes/print')(app, db, getSubdomain);
-require('./src/routes/waiters')(app, db, getSubdomain);
-
 // ── Admin routes ─────────────────────────────────────────────────
 app.post('/api/admin/client', (req, res) => {
   const adminKey = req.headers['x-admin-key'];
   if (adminKey !== process.env.ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' });
-  const { subdomain, name, username, password } = req.body;
+  const { subdomain, name, username, password, language = 'sq' } = req.body;
   if (!subdomain || !name || !username || !password) {
     return res.status(400).json({ error: 'subdomain, name, username, password required' });
   }
+  if (!['sq', 'sr'].includes(language)) {
+    return res.status(400).json({ error: 'language must be sq or sr' });
+  }
   try {
     const hashedPw = bcrypt.hashSync(password, 10);
-    db.prepare('INSERT INTO clients (subdomain, name) VALUES (?, ?)').run(subdomain.toLowerCase(), name);
+    db.prepare('INSERT INTO clients (subdomain, name, language) VALUES (?, ?, ?)').run(subdomain.toLowerCase(), name, language);
     db.prepare('INSERT INTO users (subdomain, username, password) VALUES (?, ?, ?)').run(subdomain.toLowerCase(), username, hashedPw);
     res.json({ status: 'ok', message: `Client '${subdomain}' created` });
   } catch (err) {
@@ -428,7 +389,7 @@ app.post('/api/admin/client', (req, res) => {
 app.get('/api/admin/clients', (req, res) => {
   const adminKey = req.headers['x-admin-key'];
   if (adminKey !== process.env.ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' });
-  const clients = db.prepare('SELECT subdomain, name, created_at FROM clients').all();
+  const clients = db.prepare('SELECT subdomain, name, language, created_at FROM clients').all();
   res.json(clients);
 });
 
@@ -438,6 +399,6 @@ app.get('*', (req, res) => {
 });
 
 // ── Start ───────────────────────────────────────────────────────
-server.listen(PORT, () => {
-  console.log(`✅ POS server running on port ${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`✅ InTouch Dashboard running on http://${HOST}:${PORT}`);
 });

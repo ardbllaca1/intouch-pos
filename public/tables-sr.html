@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="sr-Latn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Stolovi</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --bg:#0a0a0f; --surface:#111118; --surface2:#1a1a24; --border:#2a2a3a;
+      --accent:#6366f1; --accent2:#8b5cf6; --green:#10b981; --red:#ef4444;
+      --yellow:#f59e0b; --text:#f1f5f9; --muted:#64748b; --radius:14px;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+      min-height: 100vh;
+    }
+    .topbar {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:0 max(16px, env(safe-area-inset-left));
+      padding-right:max(16px, env(safe-area-inset-right));
+      height:56px; background:var(--surface); border-bottom:1px solid var(--border);
+      position:sticky; top:0; z-index:100; backdrop-filter: blur(12px);
+    }
+    .topbar-left { display:flex; align-items:center; gap:10px; min-width:0; }
+    .logo {
+      width:30px; height:30px; flex-shrink:0; border-radius:8px;
+      display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+    }
+    .topbar-titles h1 { font-size:15px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .topbar-date { font-size:11px; color:var(--muted); }
+    .btn {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+      padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; min-height: 36px;
+    }
+    .btn:hover { background: var(--border); }
+    .page { max-width: 1200px; margin: 0 auto; padding: 16px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px;
+    }
+    .card-title { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+    .legend { display:flex; flex-wrap:wrap; gap:14px; margin-bottom:14px; color:var(--muted); font-size:13px; }
+    .legend-item { display:flex; align-items:center; gap:8px; }
+    .swatch { width:12px; height:12px; border-radius:3px; }
+    .swatch-green { background: var(--green); }
+    .swatch-red { background: var(--red); }
+    .tables-grid {
+      display:grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 10px;
+    }
+    .table-cell {
+      min-height: 80px;
+      border: 1px solid var(--border);
+      border-top-width: 4px;
+      border-radius: 10px;
+      display:flex; align-items:center; justify-content:center;
+      text-align:center; padding:6px;
+      font-size: 15px; font-weight: 700;
+      background: var(--surface2);
+      color: var(--muted);
+      cursor: pointer;
+      width: 100%;
+      font-family: inherit;
+    }
+    .table-cell:hover { border-color: rgba(241,245,249,0.45); }
+    .table-cell.selected {
+      outline: 2px solid var(--text);
+      outline-offset: 2px;
+    }
+    .table-cell.active {
+      border-top-color: var(--accent);
+      border-color: rgba(99,102,241,0.5);
+      background: rgba(99,102,241,0.14);
+      color: var(--accent);
+    }
+    .table-cell.inactive {
+      border-top-color: var(--red);
+      border-color: rgba(239,68,68,0.4);
+      background: rgba(239,68,68,0.10);
+      color: #fca5a5;
+    }
+    .details-card {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .details-head {
+      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+      margin-bottom: 12px;
+    }
+    .details-title { font-size: 18px; font-weight: 700; }
+    .details-subtitle { color: var(--muted); font-size: 13px; margin-top: 3px; }
+    .status-pill {
+      flex-shrink: 0; border: 1px solid var(--border); border-radius: 999px;
+      padding: 5px 9px; font-size: 12px; font-weight: 700;
+    }
+    .status-pill.active { color: var(--accent); background: rgba(99,102,241,0.14); border-color: rgba(99,102,241,0.5); }
+    .status-pill.inactive { color: #fca5a5; background: rgba(239,68,68,0.10); border-color: rgba(239,68,68,0.4); }
+    .summary-grid {
+      display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:10px;
+      margin-bottom: 14px;
+    }
+    .summary-box { background: var(--surface2); border:1px solid var(--border); border-radius:10px; padding:10px; }
+    .summary-label { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+    .summary-value { font-size: 16px; font-weight: 800; overflow-wrap:anywhere; }
+    .orders-wrap { overflow:auto; border:1px solid var(--border); border-radius:10px; }
+    table { width:100%; border-collapse: collapse; min-width: 520px; font-size: 13px; }
+    th, td { text-align:left; padding:10px; border-bottom:1px solid rgba(42,42,58,0.7); }
+    th { color: var(--muted); font-size: 12px; font-weight: 600; background: var(--surface2); }
+    tr:last-child td { border-bottom:none; }
+    tr.row-current { background: rgba(16,185,129,0.10); }
+    tr.row-current td { border-bottom-color: rgba(16,185,129,0.18); }
+    tr.row-previous { opacity: 0.72; }
+    td.amount { text-align:right; font-weight:700; color: var(--green); }
+    .order-state {
+      display:inline-flex; align-items:center; border-radius:999px; padding:3px 7px;
+      font-size:11px; font-weight:700; border:1px solid var(--border); white-space:nowrap;
+    }
+    .order-state.current { color:var(--green); background:rgba(16,185,129,0.14); border-color:rgba(16,185,129,0.45); }
+    .order-state.previous { color:var(--muted); background:var(--surface2); }
+    .session-note { color:var(--muted); font-size:12px; margin:-6px 0 10px; }
+    .empty { color: var(--muted); text-align:center; padding: 24px 0; }
+    @media (min-width: 600px) {
+      .topbar { height: 60px; padding: 0 24px; }
+      .page { padding: 24px; }
+    }
+    @media (min-width: 900px) {
+      .topbar { height: 64px; padding: 0 32px; }
+      .topbar-titles h1 { font-size: 16px; }
+      .page { padding: 32px; }
+    }
+  </style>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#111118">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml"></head>
+<body>
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">IT</div>
+      <div class="topbar-titles">
+        <h1 id="restaurantName">InTouch</h1>
+        <div class="topbar-date">Stolovi</div>
+      </div>
+    </div>
+    <button id="btn-back" class="btn">← Nazad</button>
+  </div>
+
+  <main class="page">
+    <section class="card">
+      <h2 class="card-title">Stolovi</h2>
+      <div class="legend">
+        <div class="legend-item"><span class="swatch swatch-green"></span>Ima aktivne porudžbine</div>
+        <div class="legend-item"><span class="swatch swatch-red"></span>Nema aktivnih porudžbina</div>
+      </div>
+      <div id="tablesGrid" class="tables-grid"></div>
+      <section id="tableDetails" class="details-card" aria-live="polite">
+        <div class="empty">Izaberite sto za prikaz detalja dana.</div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const token = sessionStorage.getItem('token');
+    if (!token) { window.location.href = '/index.html'; throw new Error('No token'); }
+    if ((sessionStorage.getItem('language') || 'sq') !== 'sr') {
+      window.location.replace('/tables.html' + window.location.search);
+      throw new Error('switching page language');
+    }
+
+    function hostClient() {
+      const rootDomain = 'intouch-data.com';
+      const hostname = window.location.hostname.toLowerCase();
+      if (hostname.endsWith('.' + rootDomain) && hostname !== 'www.' + rootDomain) {
+        return hostname.slice(0, -rootDomain.length - 1).split('.')[0];
+      }
+      return '';
+    }
+
+    const clientParam = hostClient() || new URLSearchParams(window.location.search).get('client') || sessionStorage.getItem('client') || '';
+    const restaurantName = sessionStorage.getItem('restaurantName') || 'InTouch';
+    document.getElementById('restaurantName').textContent = restaurantName;
+    document.title = restaurantName + ' – Stolovi';
+    let selectedTableName = '';
+    let latestData = { tables: [], allOrders: [] };
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[ch]));
+    }
+
+    function fmt(n) {
+      return parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
+    }
+
+    function backToDashboard() {
+      window.location.href = '/dashboard-sr.html' + (clientParam ? '?client=' + encodeURIComponent(clientParam) : '');
+    }
+
+    function tableSortValue(name) {
+      const value = String(name || '').trim();
+      const number = parseInt(value, 10);
+      return Number.isNaN(number) ? null : number;
+    }
+
+    function sortTables(tables) {
+      return [...tables].sort((a, b) => {
+        const aNum = tableSortValue(a.name);
+        const bNum = tableSortValue(b.name);
+        if (aNum !== null && bNum !== null && aNum !== bNum) return aNum - bNum;
+        if (aNum !== null && bNum === null) return -1;
+        if (aNum === null && bNum !== null) return 1;
+        return String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric: true, sensitivity: 'base' });
+      });
+    }
+
+    function renderTables(tables) {
+      const grid = document.getElementById('tablesGrid');
+      tables = sortTables(tables);
+      if (!tables.length) {
+        grid.innerHTML = '<div class="empty">Danas nema stolova.</div>';
+        renderTableDetails(null, []);
+        return;
+      }
+      grid.innerHTML = tables.map(t => {
+        const name = t.name || '';
+        const state = t.active ? 'active' : 'inactive';
+        const selected = name === selectedTableName ? ' selected' : '';
+        return `<button type="button" class="table-cell ${state}${selected}" data-table="${escapeHtml(name)}">${escapeHtml(name)}</button>`;
+      }).join('');
+      grid.querySelectorAll('.table-cell').forEach(btn => {
+        btn.addEventListener('click', () => {
+          selectedTableName = btn.dataset.table || '';
+          renderTables(latestData.tables);
+        });
+      });
+      if (selectedTableName && !tables.some(t => (t.name || '') === selectedTableName)) {
+        selectedTableName = '';
+        renderTableDetails(null, []);
+      } else {
+        renderSelectedDetails();
+      }
+    }
+
+    function normalizeTableName(value) {
+      return String(value || '').trim().toLowerCase().replace(/^t\s*/, '');
+    }
+
+    function tableOrders(tableName) {
+      const normalized = normalizeTableName(tableName);
+      return (latestData.allOrders || []).filter(o => normalizeTableName(o.tav) === normalized);
+    }
+
+    function uniqueValues(rows, key) {
+      return [...new Set(rows.map(row => row[key]).filter(Boolean))];
+    }
+
+    function hasSessionMarkers(rows) {
+      return rows.some(o => o.isActive || o.active || o.current || o.open || o.sessionId || o.session_id);
+    }
+
+    function isCurrentOrder(order) {
+      return Boolean(order.isActive || order.active || order.current || order.open);
+    }
+
+    function renderSelectedDetails() {
+      if (!selectedTableName) return;
+      const table = (latestData.tables || []).find(t => (t.name || '') === selectedTableName);
+      renderTableDetails(table, tableOrders(selectedTableName));
+    }
+
+    function renderTableDetails(table, orders) {
+      const box = document.getElementById('tableDetails');
+      if (!table) {
+        box.innerHTML = '<div class="empty">Izaberite sto za prikaz detalja dana.</div>';
+        return;
+      }
+      const total = orders.reduce((sum, o) => sum + Number(o.vlera || 0), 0);
+      const hasMarkers = hasSessionMarkers(orders);
+      const currentOrders = hasMarkers ? orders.filter(isCurrentOrder) : [];
+      const qty = orders.reduce((sum, o) => sum + Number(o.sasia || 0), 0);
+      const waiters = uniqueValues(orders, 'kam');
+      const times = orders.map(o => o.time).filter(Boolean).sort();
+      const statusClass = table.active ? 'active' : 'inactive';
+      const statusText = table.active ? 'Aktivan' : 'Nema aktivnih porudžbina';
+      const rows = orders.length ? orders.map(o => {
+        const current = table.active && hasMarkers && isCurrentOrder(o);
+        const historical = !table.active || (hasMarkers && !current);
+        const rowClass = current ? 'row-current' : (historical ? 'row-previous' : '');
+        const state = current
+          ? '<span class="order-state current">Aktivno</span>'
+          : historical
+            ? '<span class="order-state previous">Ranije</span>'
+            : '<span class="order-state previous">Bez oznake</span>';
+        return `
+        <tr class="${rowClass}">
+          <td>${escapeHtml(o.time || '-')}</td>
+          <td>${escapeHtml(o.produkti || '-')}</td>
+          <td>${escapeHtml(o.sasia || 0)}</td>
+          <td>${escapeHtml(o.kam || '-')}</td>
+          <td>${state}</td>
+          <td class="amount">${fmt(o.vlera)}</td>
+        </tr>`;
+      }).join('') : '<tr><td colspan="6" class="empty">Danas nema porudžbina za ovaj sto.</td></tr>';
+
+      box.innerHTML = `
+        <div class="details-head">
+          <div>
+            <div class="details-title">${escapeHtml(table.name || '-')}</div>
+            <div class="details-subtitle">Detalji za današnji dan</div>
+          </div>
+          <span class="status-pill ${statusClass}">${statusText}</span>
+        </div>
+        <div class="summary-grid">
+          <div class="summary-box"><div class="summary-label">Ukupno</div><div class="summary-value">${fmt(total)}</div></div>
+          <div class="summary-box"><div class="summary-label">Proizvodi</div><div class="summary-value">${qty}</div></div>
+          <div class="summary-box"><div class="summary-label">Trenutno aktivno</div><div class="summary-value">${table.active ? (hasMarkers ? currentOrders.length : '-') : 0}</div></div>
+          <div class="summary-box"><div class="summary-label">Konobari</div><div class="summary-value">${escapeHtml(waiters.join(', ') || '-')}</div></div>
+          <div class="summary-box"><div class="summary-label">Vreme</div><div class="summary-value">${escapeHtml(times.length ? times[0] + ' - ' + times[times.length - 1] : '-')}</div></div>
+        </div>
+        <div class="session-note">${table.active
+          ? (hasMarkers ? 'Aktivni proizvodi su označeni zelenom bojom.' : 'Trenutni podaci nemaju oznaku aktivne sesije, pa se porudžbine prikazuju bez razlike.')
+          : 'Sto je zatvoren; sve njegove porudžbine prikazane su kao Ranije.'}</div>
+        <div class="orders-wrap">
+          <table>
+            <thead><tr><th>Vreme</th><th>Proizvod</th><th>Količina</th><th>Konobar</th><th>Status</th><th style="text-align:right">Vrednost</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    async function fetchData() {
+      try {
+        const res = await fetch('/api/sales/today?client=' + encodeURIComponent(clientParam), {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        if (res.status === 401) { sessionStorage.clear(); window.location.href = '/index.html'; return; }
+        const data = await res.json();
+        latestData = {
+          tables: Array.isArray(data.tables) ? data.tables : [],
+          allOrders: Array.isArray(data.allOrders) ? data.allOrders : []
+        };
+        renderTables(latestData.tables);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    document.getElementById('btn-back').addEventListener('click', backToDashboard);
+    fetchData();
+    setInterval(fetchData, 30000);
+  </script>
+  <script src="/pwa.js" defer></script>
+</body>
+</html>

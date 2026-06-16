@@ -5,7 +5,12 @@
 body{margin:0;background:var(--bg);color:#fff;padding:12px}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tabs button{min-height:44px;border:none;border-radius:8px;background:#23233a;color:#fff;padding:0 12px}
 .panel{display:none;background:var(--surface);padding:10px;border-radius:12px;margin-top:10px}.panel.active{display:block}
 table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #2a2a35}input,select,button{min-height:40px;border-radius:8px;border:1px solid #2a2a35;background:#1a1a25;color:#fff;padding:8px}button.action{background:var(--accent);border:none}
-</style></head><body>
+</style>  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#111118">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml"></head><body>
 <h1>Paneli Admin</h1>
 <div class="tabs"><button data-p="products">Produktet</button><button data-p="categories">Kategoritë</button><button data-p="tables">Tavolinat</button><button data-p="waiters">Kamarierët</button><button data-p="reports">Raportet</button></div>
 <section id="products" class="panel active"><h3>Produktet</h3><table><thead><tr><th>Emri</th><th>Cmimi</th><th>Kategoria</th><th>Aktiv</th><th></th></tr></thead><tbody id="productRows"></tbody></table></section>
@@ -16,6 +21,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px so
 <script>
 const subdomain = new URLSearchParams(location.search).get('client') || sessionStorage.getItem('subdomain') || 'demo';
 const token = sessionStorage.getItem('token'); if(!token) location.href='/index.html';
+if (sessionStorage.getItem('language') === 'sr') location.replace('/admin-sr.html' + location.search);
 const headers = {'Content-Type':'application/json',Authorization:`Bearer ${token}`,'x-subdomain':subdomain};
 const q=s=>document.querySelector(s), qa=s=>[...document.querySelectorAll(s)];
 qa('.tabs button').forEach(b=>b.onclick=()=>{ qa('.panel').forEach(p=>p.classList.remove('active')); q('#'+b.dataset.p).classList.add('active'); });
@@ -30,4 +36,5 @@ async function loadWaiters(){ const rows=await api('/api/waiters'); q('#waiterLi
 q('#addWaiter').onclick=()=>api('/api/waiters',{method:'POST',body:JSON.stringify({name:q('#waiterName').value,pin:q('#waiterPin').value,role:q('#waiterRole').value})}).then(()=>{q('#waiterName').value='';q('#waiterPin').value='';loadWaiters();});
 async function loadReports(){ const data=await api('/api/sales/today'); q('#reportBox').textContent=JSON.stringify({total:data.totalSales,byWaiter:data.byWaiter,byCategory:data.byDepartment},null,2); }
 Promise.all([loadCategories(),loadProducts(),loadTables(),loadWaiters(),loadReports()]);
-</script></body></html>
+</script>  <script src="/pwa.js" defer></script>
+</body></html>
