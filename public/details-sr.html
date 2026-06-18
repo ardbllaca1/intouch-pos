@@ -109,6 +109,14 @@
         <div class="summary-val" id="akulloretVal">0.00€</div>
       </div>
       <div class="summary-row">
+        <div class="summary-label">Slatkiši</div>
+        <div class="summary-val" id="embelsiratVal">0.00€</div>
+      </div>
+      <div class="summary-row">
+        <div class="summary-label">Lokumi</div>
+        <div class="summary-val" id="llokumatVal">0.00€</div>
+      </div>
+      <div class="summary-row">
         <div class="summary-label">Ostalo</div>
         <div class="summary-val" id="tjeraVal">0.00€</div>
       </div>
@@ -218,6 +226,8 @@
         document.getElementById('pizzaVal').textContent = fmt(departmentTotal(data.byDepartment, 'Pizza'));
         document.getElementById('sallatatVal').textContent = fmt(departmentTotal(data.byDepartment, 'Sallatat'));
         document.getElementById('akulloretVal').textContent = fmt(departmentTotal(data.byDepartment, 'Akulloret'));
+        document.getElementById('embelsiratVal').textContent = fmt(departmentTotal(data.byDepartment, 'Embelsirat'));
+        document.getElementById('llokumatVal').textContent = fmt(departmentTotal(data.byDepartment, 'Llokumat'));
         document.getElementById('tjeraVal').textContent = fmt(departmentTotal(data.byDepartment, 'Tjera'));
         renderWaiters(Array.isArray(data.byWaiter) ? data.byWaiter : []);
         renderChart(Array.isArray(data.hourly) ? data.hourly : []);
