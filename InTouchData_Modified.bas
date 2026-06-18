@@ -198,6 +198,8 @@ Private Function DeptExpr(Optional ByVal aliasName As String = "") As String
                "UCase(Trim(Nz(" & p & "[nj2],'')))='P','Pizza'," & _
                "UCase(Trim(Nz(" & p & "[nj2],'')))='S','Sallatat'," & _
                "UCase(Trim(Nz(" & p & "[nj2],'')))='A','Akulloret'," & _
+               "UCase(Trim(Nz(" & p & "[nj2],'')))='E','Embelsirat'," & _
+               "UCase(Trim(Nz(" & p & "[nj2],'')))='L','Llokumat'," & _
                "UCase(Trim(Nz(" & p & "[nj2],'')))='X','Tjera'" & _
                ")"
 End Function
@@ -277,7 +279,7 @@ End Function
 
 ' ================================================================
 '  SALES BY DEPARTMENT
-'  B=Banaku, K=Kuzhina, P=Pizza, S=Sallatat, A=Akulloret, X=Tjera
+'  B=Banaku, K=Kuzhina, P=Pizza, S=Sallatat, A=Akulloret, E=Embelsirat, L=Llokumat, X=Tjera
 ' ================================================================
 Private Function GetByDepartment(today As String) As String
     On Error GoTo ErrHandler
@@ -287,7 +289,7 @@ Private Function GetByDepartment(today As String) As String
           "       Sum(" & TotalExpr("f") & ") AS totali " & _
           "FROM [tbldetalet e faturimit] AS f " & _
           "INNER JOIN tblprodukti AS p ON f.fKeyProductID = p.pkeyProductID " & _
-          "WHERE UCase(Trim(Nz(p.[nj2],''))) IN ('B','K','P','S','A','X') " & _
+          "WHERE UCase(Trim(Nz(p.[nj2],''))) IN ('B','K','P','S','A','E','L','X') " & _
           "GROUP BY " & DeptExpr("p") & " " & _
           "ORDER BY Sum(" & TotalExpr("f") & ") DESC"
 

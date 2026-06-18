@@ -297,7 +297,10 @@ Example payload:
     { "name": "Kuzhina", "total": 434.5 },
     { "name": "Pizza", "total": 250 },
     { "name": "Sallatat", "total": 120 },
-    { "name": "Akulloret", "total": 90 }
+    { "name": "Akulloret", "total": 90 },
+    { "name": "Embelsirat", "total": 75 },
+    { "name": "Llokumat", "total": 60 },
+    { "name": "Tjera", "total": 40 }
   ],
   "hourly": [
     { "hour": "10-11", "count": 5 }

@@ -600,6 +600,8 @@
       'Pizza':'🍕',
       'Sallatat':'🥗',
       'Akulloret':'🍨',
+      'Embelsirat':'🍰',
+      'Llokumat':'🍩',
       'Tjera':'📦'
     };
     const colors = {
@@ -608,6 +610,8 @@
       'Pizza':'#ef4444',
       'Sallatat':'#22c55e',
       'Akulloret':'#ec4899',
+      'Embelsirat':'#a855f7',
+      'Llokumat':'#fb7185',
       'Tjera':'#f59e0b'
     };
     return depts.map(d=>`
@@ -619,7 +623,7 @@
   }
 
   function normalizeDepartments(depts) {
-    const names = ['Banaku', 'Kuzhina', 'Pizza', 'Sallatat', 'Akulloret', 'Tjera'];
+    const names = ['Banaku', 'Kuzhina', 'Pizza', 'Sallatat', 'Akulloret', 'Embelsirat', 'Llokumat', 'Tjera'];
     const totals = new Map(
       (depts || []).map(d => [d.name, Number(d.total) || 0])
     );
@@ -635,6 +639,8 @@
       'Pizza':'Pica',
       'Sallatat':'Salate',
       'Akulloret':'Sladoledi',
+      'Embelsirat':'Slatkiši',
+      'Llokumat':'Lokumi',
       'Tjera':'Ostalo'
     }[name] || name;
   }
@@ -649,6 +655,8 @@
       'Pizza':'#ef4444',
       'Sallatat':'#22c55e',
       'Akulloret':'#ec4899',
+      'Embelsirat':'#a855f7',
+      'Llokumat':'#fb7185',
       'Tjera':'#f59e0b'
     };
     charts[canvasId] = new Chart(ctx.getContext('2d'), {
